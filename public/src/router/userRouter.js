@@ -184,9 +184,9 @@ router.post('/user/login', (req, res) => {
       // Jika user memasukkan password yang salah
       if(!validPassword) return res.status(400).send({message: 'password tidak valid'})
       // Verikasi status verified
-      if(!user.verified) return res.status(401).send({message: 'Anda belum terverifikasi'})
+      // if(!user.verified_email) return res.status(401).send({message: 'Anda belum terverifikasi'})
       // Membuat token
-      let token = jwt.sign({ id: user.id}, 'fresh-rain890')
+      let token = jwt.sign({ id: user.id}, 'secretcode')
       // Property user_id dan token merupakan nama kolom yang ada di tabel 'tokens'
       const data = {user_id : user.id, token : token}
 
