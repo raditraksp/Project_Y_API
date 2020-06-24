@@ -110,7 +110,7 @@ router.get('/user/avatar/:username', (req, res) => {
 
 // VERIFY EMAIL
 router.get('/verify/:userid', (req, res) => {
-   const sql = `UPDATE users SET verified = true WHERE id = ${req.params.userid}`
+   const sql = `UPDATE table_users SET verified_email = true WHERE id = ${req.params.userid}`
 
    conn.query(sql, (err, result) => {
       if(err) return res.status(500).send(err.sqlMessage)
@@ -147,7 +147,7 @@ router.post('/register', (req, res) => {
       if(err) return res.status(500).send(err)
 
       // Kirim email verifikasi
-      verifSendEmail(data.name, data.email, resu.insertId)
+      verifSendEmail(data.username, data.email, resu.insertId)
       const sql2= `INSERT INTO table_users SET role_id = 2,detail_user_id= ${resu.insertId}`
       conn.query(sql2,(err, result) => {
          if(err) return res.status(500).send(err)
@@ -159,8 +159,6 @@ router.post('/register', (req, res) => {
       resu
    )
    })
-
-
 })
 
 // LOGIN USER
@@ -184,9 +182,9 @@ router.post('/user/login', (req, res) => {
       // Jika user memasukkan password yang salah
       if(!validPassword) return res.status(400).send({message: 'password tidak valid'})
       // Verikasi status verified
-      if(!user.verified) return res.status(401).send({message: 'Anda belum terverifikasi'})
+      if(user.verified_email === 0) return res.status(401).send({message: 'Anda belum terverifikasi'})
       // Membuat token
-      let token = jwt.sign({ id: user.id}, 'fresh-rain890')
+      let token = jwt.sign({ id: user.id}, 'secretcode')
       // Property user_id dan token merupakan nama kolom yang ada di tabel 'tokens'
       const data = {user_id : user.id, token : token}
 
