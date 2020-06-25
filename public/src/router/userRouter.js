@@ -236,7 +236,16 @@ router.patch('/user/profile', auth, upload.single('avatar'), (req, res) => {
    })
 })
 
+// GET PROFILE
+router.get('/user/profile', auth, (req, res) => {
 
+   // req.user = {id, username, name, email, avatar}
+   res.status(200).send({
+       user: req.user
+      //  avatarlink: `http://localhost:2020/user/avatar/${req.user.avatar}`
+   })
+
+})
 
 
 

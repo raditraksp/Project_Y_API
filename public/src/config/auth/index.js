@@ -8,9 +8,9 @@ const auth = (req, res, next) => {
       // Mengambil token saat proses menerima request
       let token = req.header('Authorization')
       // Mencoba mengambil data asli yang tersimpan di dalam token
-      let decoded = jwt.verify(token, 'fresh-rain890')
+      let decoded = jwt.verify(token, 'secretcode')
       // Didalam token ada id user, selanjutnya di gunakan untuk mengambil data user di database
-      let sql = `SELECT id, username, name, email, avatar FROM users WHERE id = ${decoded.id}`
+      let sql = `SELECT id, username, email, avatar ,ktp_number, ktp_photo FROM table_detail_users WHERE id = ${decoded.id}`
 
       conn.query(sql, (err, result) => {
          if(err) return res.send(err)
