@@ -23,7 +23,7 @@ const upload = multer({
    }
 })
 
-const filesDirectory = path.join(__dirname, '../files')
+const avatarDirectory = path.join(__dirname, '../files')
 
 // UPLOAD AVATAR
 router.post('/user/avatar', auth, upload.single('avatar'), async (req, res) => {
