@@ -3,11 +3,14 @@ const cors = require('cors')
 const app = express()
 const port = 2022
 
-const userRouter = require('./public/src/router/userRouter')
+const userRouter = require('./src/router/userRouter')
+const productRouter = require('./src/router/productRouter')
 
 app.use(cors())
 app.use(express.json())
+
 app.use(userRouter)
+app.use(productRouter)
 
 
 app.get('/', (req, res) => {

@@ -64,9 +64,12 @@ router.post('/user/avatar', auth, upload.single('avatar'), async (req, res) => {
 
 // GET PROFILE
 router.get('/user/profile', auth, (req, res) => {
+   
+   const sql = `SELECT * FROM table_user_detail WHERE id = ${req.user.id}`
+   
    res.status(200).send({
       ...req.user,
-      avatar : `http://localhost:2020/user/avatar/${req.user.username}` 
+      avatar : `http://localhost:2022/user/avatar/${req.user.username}` 
    })
 })
 
@@ -236,16 +239,7 @@ router.patch('/user/profile', auth, upload.single('avatar'), (req, res) => {
    })
 })
 
-// GET PROFILE
-router.get('/user/profile', auth, (req, res) => {
 
-   // req.user = {id, username, name, email, avatar}
-   res.status(200).send({
-       user: req.user
-      //  avatarlink: `http://localhost:2020/user/avatar/${req.user.avatar}`
-   })
-
-})
 
 
 
