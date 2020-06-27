@@ -46,7 +46,7 @@ router.post('/products', auth, product.single("product_photo"),  (req, res) => {
             // Generate file name
             const fileName = `${shortid.generate()}.png`
             // Simpan gambar
-            await sharp(req.file.buffer).resize(300).png().toFile(`${productsDirectory}/${fileName}`)
+            await sharp(req.file.buffer).resize(500).png().toFile(`${productsDirectory}/${fileName}`)
             
             const sqlUpdate = `UPDATE table_products SET product_photo = ? WHERE id = ?`
             const dataUpdate = [fileName, result.insertId]
@@ -67,13 +67,7 @@ router.post('/products', auth, product.single("product_photo"),  (req, res) => {
 
 // READ ALL PRODUCTS
 router.get('/products', auth, (req, res) => {
-    const sqlSelect = `
-        SELECT 
-            u.id 'usrId' , u.name 'usrName', u.avatar 'usrAvatar',
-            p.id, p.name , p.picture, p.description, p.stock, p.price
-        FROM users u
-        JOIN products p ON u.id = p.user_id WHERE u.id != ${req.user.id}
-    `
+    const sqlSelect = `SELECT * FROM table_products WHERE user_id != ${req.user.id}`
 
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
@@ -84,7 +78,11 @@ router.get('/products', auth, (req, res) => {
 
 // READ OWN PRODUCTS
 router.get('/products/me', auth, (req, res) => {
-    const sqlSelect = `SELECT * FROM products WHERE user_id = ${req.user.id}`
+    const sqlSelect = `
+    SELECT p.id, p.product, c.category, p.price_basic, p.price_premium, p.detail_basic, p.detail_premium, p.product_photo, p.created_at, p.updated_at 
+    FROM table_products p 
+    JOIN table_categories c ON p.category_id = c.id
+    WHERE p.user_id = ${req.user.id}`
 
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
@@ -113,7 +111,7 @@ router.get('/product/picture/:fileName', (req, res) => {
 
 // READ DETAIL PRODUCT
 router.get('/product/:id', auth, (req, res) => {
-    const sqlSelect = `SELECT * FROM products WHERE id = ${req.params.id}`
+    const sqlSelect = `SELECT * FROM table_products WHERE id = ${req.params.id}`
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
         
@@ -121,6 +119,15 @@ router.get('/product/:id', auth, (req, res) => {
     })
 })
 
+// DELETE PRODUCT
+router.delete('/product/:product_id', auth, (req, res) => {
+    const sql = `DELETE FROM table_products WHERE id = ${req.params.product_id}`
+    conn.query(sql, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send({message:"Delete Success"})
+    })
+})
 
 
 
