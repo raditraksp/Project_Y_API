@@ -23,7 +23,7 @@ const upload = multer({
    }
 })
 
-const avatarDirectory = path.join(__dirname, '../files')
+const avatarDirectory = path.join(__dirname, '../assets/users')
 
 // UPLOAD AVATAR
 router.post('/user/avatar', auth, upload.single('avatar'), async (req, res) => {
@@ -33,11 +33,11 @@ router.post('/user/avatar', auth, upload.single('avatar'), async (req, res) => {
       // const sql = `UPDATE users SET avatar = '${avatar}' WHERE username = '${req.body.username}'`
 
       const fileName = `${req.user.username}-avatar.png`
-      const sql = `UPDATE users SET avatar = ? WHERE username = ?`
+      const sql = `UPDATE table_detail_users SET avatar = ? WHERE username = ?`
       const data = [fileName, req.user.username]
 
       // Menyimpan foto di folder
-      await sharp(req.file.buffer).resize(300).png().toFile(`${filesDirectory}/${fileName}`)
+      await sharp(req.file.buffer).resize(300).png().toFile(`${avatarDirectory}/${fileName}`)
 
       // Simpan nama avata di kolom 'avatar'
       conn.query(sql, data, (err, result) => {
@@ -66,7 +66,7 @@ router.post('/user/avatar', auth, upload.single('avatar'), async (req, res) => {
 router.get('/user/profile', auth, (req, res) => {
    res.status(200).send({
       ...req.user,
-      avatar : `http://localhost:2020/user/avatar/${req.user.username}` 
+      avatar : `http://localhost:2022/user/avatar/${req.user.username}` 
    })
 })
 
@@ -76,7 +76,7 @@ router.get('/user/avatar/:username', (req, res) => {
    const username = req.params.username
 
    // Cari nama file di database
-   const sql = `SELECT avatar FROM users WHERE username = '${username}'`
+   const sql = `SELECT avatar FROM table_detail_users WHERE username = '${username}'`
 
    // Kirim file ke client
    conn.query(sql, (err, result) => {
@@ -90,12 +90,12 @@ router.get('/user/avatar/:username', (req, res) => {
          const fileName = result[0].avatar
          // Object options yang menentukan dimana letak avatar disimpan
          const options = {
-            root: filesDirectory
+            root: avatarDirectory
          }
 
          // Mengirim file sebagai respon
          // alamatFolder/namaFile, cbfunction
-         res.sendFile(`${filesDirectory}/${fileName}`, (err) => {
+         res.sendFile(`${avatarDirectory}/${fileName}`, (err) => {
             // Mengirim object error jika terjadi masalah
             if(err) return res.status(200).send(err)
 
@@ -237,16 +237,6 @@ router.patch('/user/profile', auth, upload.single('avatar'), (req, res) => {
    })
 })
 
-// GET PROFILE
-router.get('/user/profile', auth, (req, res) => {
-
-   // req.user = {id, username, name, email, avatar}
-   res.status(200).send({
-       user: req.user
-      //  avatarlink: `http://localhost:2020/user/avatar/${req.user.avatar}`
-   })
-
-})
 
 
 
