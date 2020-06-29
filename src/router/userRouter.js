@@ -148,7 +148,7 @@ router.post('/register', (req, res) => {
 
       // Kirim email verifikasi
       verifSendEmail(data.username, data.email, resu.insertId)
-      const sql2= `INSERT INTO table_users SET role_id = 2,detail_user_id= ${resu.insertId}`
+      const sql2= `INSERT INTO table_users SET role_id = 2, detail_user_id= ${resu.insertId}`
       conn.query(sql2,(err, result) => {
          if(err) return res.status(500).send(err)
       
