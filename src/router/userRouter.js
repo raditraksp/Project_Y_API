@@ -167,9 +167,10 @@ router.post('/user/login', (req, res) => {
 
    const sql = `SELECT * FROM table_detail_users WHERE username = '${username}'`
    const sql2 = `INSERT INTO table_tokens SET ?`
+
    
 
-   conn.query(sql, (err, result) => {
+   conn.query(sql,  (err, result) => {
       // Cek error
       if(err) return res.status(500).send(err)
 
