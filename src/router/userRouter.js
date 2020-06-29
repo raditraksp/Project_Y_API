@@ -168,6 +168,7 @@ router.post('/user/login', (req, res) => {
    const sql = `SELECT * FROM table_detail_users WHERE username = '${username}'`
    const sql2 = `INSERT INTO table_tokens SET ?`
    
+   
 
    conn.query(sql, (err, result) => {
       // Cek error
@@ -191,12 +192,13 @@ router.post('/user/login', (req, res) => {
 
       conn.query(sql2, data, (err, result) => {
          if(err) return res.status(500).send(err)
-
+         
          // Menghapus beberapa property
          delete user.password
          delete user.avatar
          delete user.verified
-
+         const sql3 = `UPDATE table_users SET token_id = ${result.insertId} WHERE detail_user_id = ${user.id} `
+         conn.query(sql3)
          res.status(200).send({
             message: 'Login berhasil',
             user,
@@ -236,7 +238,22 @@ router.patch('/user/profile', auth, upload.single('avatar'), (req, res) => {
    })
 })
 
+router.delete('/logout',auth,(req,res) => {
+   const sql = `DELETE FROM table_tokens WHERE user_id = ${req.user.id}`
 
+   conn.query(sql, (err, result) => {
+      if(err) return res.status(500).send(err)
+
+      res.status(200).send({
+         message : "delete berhasil",
+         result
+      })
+   })
+})
+
+// router.patch('/edit/user',auth,(req.res) => {
+//    const sql = ""
+// })
 
 
 
