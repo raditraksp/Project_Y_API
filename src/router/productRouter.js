@@ -118,7 +118,7 @@ router.patch('/product/:product_id', auth, (req, res) => {
 
 // READ ALL PRODUCTS
 router.get('/products', auth, (req, res) => {
-    const sqlSelect = `SELECT * FROM table_products WHERE user_id != ${req.user.id} AND status = 1`
+    const sqlSelect = `SELECT * FROM table_products p JOIN table_detail_users du ON p.user_id=du.id WHERE user_id != ${req.user.id} AND status = 1`
 
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
@@ -180,6 +180,42 @@ router.delete('/product/:product_id', auth, (req, res) => {
     })
 })
 
+// READ ALL PRODUCTS ADMIN
+router.get('/products/admin', auth, (req, res) => {
+    const sqlSelect = `SELECT  p.id, p.product, c.category, du.username, p.product_photo, 
+    p.status, u.role_id, p.detail_basic, p. detail_premium, p.price_basic, p.price_premium FROM table_products p JOIN 
+    table_users u ON p.user_id = u.id JOIN 
+    table_detail_users du ON p.user_id=du.id JOIN 
+    table_categories c ON p.category_id = c.id 
+    WHERE status = 0`
 
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// APPROVED PRODUCTS BY ADMIN
+router.get('/approved/admin/:product_id', auth, (req, res) => {
+    const sqlSelect = `UPDATE table_products SET status=1 WHERE id= ${req.params.product_id}`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// REJECTED PRODUCTS BY ADMIN
+router.get('/rejected/admin/:product_id', auth, (req, res) => {
+    const sqlSelect = `UPDATE table_products SET status=2 WHERE id= ${req.params.product_id}`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
 
 module.exports = router

@@ -181,7 +181,7 @@ router.patch('/user/profile', auth, (req, res) => {
             })
 
 // LOGOUT
-router.delete('/logout',auth,(req,res) => {
+router.delete('/logout', auth,(req,res) => {
    const sql = `DELETE FROM table_tokens WHERE user_id = ${req.user.id}`
    
    conn.query(sql, (err, result) => {
