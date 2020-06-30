@@ -10,7 +10,7 @@ const auth = (req, res, next) => {
       // Mencoba mengambil data asli yang tersimpan di dalam token
       let decoded = jwt.verify(token, 'secretcode')
       // Didalam token ada id user, selanjutnya di gunakan untuk mengambil data user di database
-      let sql = `SELECT id, username,name, phone_number, email, avatar ,ktp_number, ktp_photo FROM table_detail_users WHERE id = ${decoded.id}`
+      let sql = `SELECT id, username, name, address, date_of_birth, gender, phone_number, email, avatar ,ktp_number, ktp_photo FROM table_detail_users WHERE id = ${decoded.id}`
 
 
       conn.query(sql, (err, result) => {
