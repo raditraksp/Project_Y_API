@@ -130,7 +130,7 @@ router.get('/products', auth, (req, res) => {
 // READ OWN PRODUCTS
 router.get('/products/me', auth, (req, res) => {
     const sqlSelect = `
-    SELECT p.id, p.product, c.category, p.price_basic, p.price_premium, p.detail_basic, p.detail_premium, p.product_photo, p.status, p.created_at, p.updated_at 
+    SELECT p.id, p.product, c.category, p.detail_product, p.price_basic, p.price_premium, p.detail_basic, p.detail_premium, p.product_photo, p.status, p.created_at, p.updated_at 
     FROM table_products p 
     JOIN table_categories c ON p.category_id = c.id
     WHERE p.user_id = ${req.user.id}`
