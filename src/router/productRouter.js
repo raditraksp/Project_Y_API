@@ -117,8 +117,8 @@ router.patch('/product/:product_id', auth, (req, res) => {
 })
 
 // READ ALL PRODUCTS
-router.get('/products', auth, (req, res) => {
-    const sqlSelect = `SELECT * FROM table_products p JOIN table_detail_users du ON p.user_id=du.id WHERE user_id != ${req.user.id} AND status = 1`
+router.get('/products', (req, res) => {
+    const sqlSelect = `SELECT * FROM table_products p JOIN table_detail_users du ON p.user_id=du.id WHERE status = 1`
 
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
