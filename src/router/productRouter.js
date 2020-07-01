@@ -65,7 +65,7 @@ router.post('/products', auth, product.single("product_photo"),  (req, res) => {
     }
 })
 
-// UPDATE PRODUCT AVATAR
+// UPDATE PRODUCT PHOTO
 router.post('/product/photo/:product_id', auth, product.single('product_photo'), async (req,res) => {
 
     try {
@@ -118,7 +118,9 @@ router.patch('/product/:product_id', auth, (req, res) => {
 
 // READ ALL PRODUCTS
 router.get('/products', (req, res) => {
-    const sqlSelect = `SELECT * FROM table_products p JOIN table_detail_users du ON p.user_id=du.id WHERE status = 1`
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.category_id, p.rating_id, p.price_basic, p.product_photo, p.status, u.username 
+    FROM table_products p JOIN table_users u ON p.user_id=u.id WHERE p.status = 1`
 
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
@@ -161,7 +163,7 @@ router.get('/product/picture/:fileName', (req, res) => {
 })
 
 // READ DETAIL PRODUCT
-router.get('/product/:id', auth, (req, res) => {
+router.get('/product/:id', (req, res) => {
     const sqlSelect = `SELECT * FROM table_products WHERE id = ${req.params.id}`
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
@@ -182,10 +184,9 @@ router.delete('/product/:product_id', auth, (req, res) => {
 
 // READ ALL PRODUCTS ADMIN
 router.get('/products/admin', auth, (req, res) => {
-    const sqlSelect = `SELECT  p.id, p.product, c.category, du.username, p.product_photo, 
+    const sqlSelect = `SELECT  p.id, p.product, c.category, u.username, p.product_photo, 
     p.status, u.role_id, p.detail_basic, p. detail_premium, p.price_basic, p.price_premium FROM table_products p JOIN 
-    table_users u ON p.user_id = u.id JOIN 
-    table_detail_users du ON p.user_id=du.id JOIN 
+    table_users u ON p.user_id = u.id JOIN
     table_categories c ON p.category_id = c.id 
     WHERE status = 0`
 
@@ -195,6 +196,56 @@ router.get('/products/admin', auth, (req, res) => {
         res.status(200).send(result)
     })
 })
+
+/////////////////////////
+/////// C A R T  ////////
+/////////////////////////
+
+// ADD TO CART
+router.post('/products/addtocart', auth,  (req, res) => {
+        // {name, description, stock, price} = req.body
+        // {picture} = req.file
+        const sqlInsert = `INSERT INTO table_carts SET ?`
+        const dataInsert = req.body
+
+        // insert semua data text
+        conn.query(sqlInsert, dataInsert, async (err, result) => {
+            if (err) return res.status(500).send(err)
+        
+        })
+        res.status(200).send({message:'Data added to cart'})
+})
+
+// READ CARTS
+router.get('/products/cart', auth, (req, res) => {
+    const sqlSelect = `
+    SELECT c.id, c.user_id, c.seller_id, c.product_id, c.product_name, c.detail_product, c.category_id, c.price, c.picture, c.status, u.username, ct.category
+    FROM table_carts c JOIN table_categories ct ON 
+    c.category_id = ct.id JOIN table_users u ON c.seller_id = u.id
+    WHERE user_id = ${req.user.id}`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+    
+})
+
+// DELETE CART
+router.delete('/cart/:cart_id', auth, (req, res) => {
+    const sql = `DELETE FROM table_carts WHERE id = ${req.params.cart_id}`
+    conn.query(sql, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send({message:"Delete Success"})
+    })
+})
+
+
+///////////////////////////////
+///////// A D M I N  //////////
+//////////////////////////////
 
 // APPROVED PRODUCTS BY ADMIN
 router.get('/approved/admin/:product_id', auth, (req, res) => {
