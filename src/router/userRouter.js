@@ -1,6 +1,7 @@
 const conn = require('../config/database')
 const router = require('express').Router()
 const verifSendEmail = require('../config/verifSendEmail')
+const changePassNotif = require('../config/changePassNotif')
 const validator = require('validator')
 const bcrypt = require('bcryptjs')
 const multer = require('multer')
@@ -221,42 +222,32 @@ router.post('/user/avatar', auth, upload.single('avatar'), async (req,res) => {
 //FORGET PASSWORD
 router.post('/user/forget',(req,res) => {
     
-    const sql = `select * FROM table_detail_users WHERE email = '${req.body.email}'`
+    const sql = `select * FROM table__users WHERE email = ?`
     const sql2 = `INSERT INTO table_tokens SET ?`
-      conn.query(sql, (err, result) => {
+
+      const data = req.body.email
+      conn.query(sql, data, (err, result) => {
          // Cek error
          if(err) return res.status(500).send(err)
    
          // result = [ {} ]
          let user = result[0]
          // Jika username tidak ditemukan
-         if(!user) return res.status(404).send({message: 'username tidak ditemukan'})
+         if(!user) return res.status(404).send({message: 'email tidak ditemukan'})
          
          // Membuat token
          let token = jwt.sign({ id: user.id}, 'secretcode')
          // Property user_id dan token merupakan nama kolom yang ada di tabel 'tokens'
-         const data = {user_id : user.id, token : token}
-   
-         conn.query(sql2, data, (err, result) => {
+         const dataInsert = {user_id : user.id, token : token}
+         changePassNotif(result[0].name, req.body.email, user.id, token)
+         conn.query(sql2, dataInsert, (err, result) => {
             if(err) return res.status(500).send(err)
             
-            // Menghapus beberapa property
-            delete user.password
-            delete user.avatar
-            delete user.verified
-            const sql3 = `UPDATE table_users SET token_id = ${result.insertId} WHERE detail_user_id = ${user.id} `
-            conn.query(sql3)
-            res.status(200).send({
-               message: 'Login berhasil',
-               user,
-               token
-            })
          })
-   
-      })
-      
-   })
-
+         res.status(200).send({message: 'Silahkan cek email anda untuk mengganti password', result, token})
+             
+     })
+ })
 
 
 
