@@ -25,8 +25,8 @@ const changePassNotif = (name, email, userid, token) => {
       to: email,
       subject: 'Testing Nodemailer',
       html: `
-          <h1>Hello, ${name}</h1>
-            <h3><a href='http://localhost:2020/user/changepassword/${token}/${userid}'>Tekan Untuk mengganti password</h3>
+          <h1>Hello,</h1>
+            <h3><a href='http://localhost:3000/changePassword/${token}/${userid}'>Tekan Untuk mengganti password</h3>
             `
     }
 

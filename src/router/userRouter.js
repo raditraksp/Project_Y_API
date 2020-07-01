@@ -34,8 +34,8 @@ router.post('/user/avatar', auth, upload.single('avatar'), async (req, res) => {
       // const sql = `UPDATE users SET avatar = '${avatar}' WHERE username = '${req.body.username}'`
 
       const fileName = `${req.user.username}-avatar.png`
-      const sql = `UPDATE table_detail_users SET avatar = ? WHERE username = ?`
-      const data = [fileName, req.user.username]
+      const sql = `UPDATE table_detail_users SET avatar = ? WHERE user_id = ?`
+      const data = [fileName, req.user.id]
 
       // Menyimpan foto di folder
       await sharp(req.file.buffer).resize(300).png().toFile(`${avatarDirectory}/${fileName}`)
@@ -80,12 +80,12 @@ router.get('/user/profile', auth, (req, res) => {
 })
 
 // GET AVATAR
-router.get('/user/avatar/:username', (req, res) => {
+router.get('/user/avatar/:id', (req, res) => {
    // Menyimpan username pada variable
-   const username = req.params.username
+   const id = req.params.id
 
    // Cari nama file di database
-   const sql = `SELECT avatar FROM table_detail_users WHERE username = '${username}'`
+   const sql = `SELECT avatar FROM table_detail_users WHERE user_id = '${id}'`
 
    // Kirim file ke client
    conn.query(sql, (err, result) => {
@@ -153,7 +153,8 @@ router.post('/register', (req, res) => {
    // Running query
    conn.query(sql, data, (err, resu) => {
       // Jika ada error kita akan kirim object errornya
-      if(err) return res.status(500).send(err)
+      if(err) return res.status(500).send({message : 'Username Atau Email sudah terpakai'})
+
 
       // Kirim email verifikasi
       verifSendEmail(data.username, data.email, resu.insertId)
@@ -164,9 +165,7 @@ router.post('/register', (req, res) => {
       // Jika berhasil, kirim object
       
    })
-   res.status(201).send(
-      resu
-   )
+   res.status(201).send({message : 'Silakan cek Email untuk verifikasi'})
    })
 })
 
@@ -203,6 +202,7 @@ router.delete('/logout', auth, (req,res) => {
     })
 })
 
+
 // UPDATE AVATAR
 router.post('/user/avatar', auth, upload.single('avatar'), async (req,res) => {
 
@@ -230,7 +230,7 @@ router.post('/user/avatar', auth, upload.single('avatar'), async (req,res) => {
 //FORGET PASSWORD
 router.post('/user/forget',(req,res) => {
     
-    const sql = `select * FROM table__users WHERE email = ?`
+    const sql = `select * FROM table_users WHERE email = ?`
     const sql2 = `INSERT INTO table_tokens SET ?`
 
       const data = req.body.email
@@ -240,7 +240,7 @@ router.post('/user/forget',(req,res) => {
    
          // result = [ {} ]
          let user = result[0]
-         // Jika username tidak ditemukan
+         
          if(!user) return res.status(404).send({message: 'email tidak ditemukan'})
          
          // Membuat token
@@ -305,11 +305,68 @@ router.post('/user/forget',(req,res) => {
       })
    })
 
-      
-     
+      //FORGET PASSWORD CHANGE PASSWORD
+   router.patch('/user/forget/:user_id', (req,res) => { 
+      const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
+      const data = req.body
+      data.password = bcrypt.hashSync(data.password, 8)
+      conn.query(sqlUpdate,data, (err, result) => {
+         if(err) return res.status(500).send(err)
+         res.status(200).send({
+            
+            message: 'Password has change'})
 
+      })
 
+   })
+
+   // DELETE TOKEN
+router.delete('/deletetoken/:user_id', (req,res) => {
+   const sql = `DELETE FROM table_tokens WHERE user_id = ${req.params.user_id}`
+   
+   conn.query(sql, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+      res.status(200).send({
+         message : "delete berhasil",
+         result
+      })
+    })
+})
+
+router.post('/change_password',auth, (req, res) => {
+   
+
+   const sql = `SELECT * FROM table_users WHERE id = ${req.user.id}`
+   
+   const data = req.body
+   conn.query(sql, (err, result) => {
+      // Cek error
+      if(err) return res.status(500).send(err)
+
+      // result = [ {} ]
+      let user = result[0]
+      // Verifikasi password
+      let validPassword = bcrypt.compareSync(data.oldPassword, user.password)
+      // Jika user memasukkan password yang salah
+      if(!validPassword) return res.status(400).send({message: 'password tidak valid'})
+      let matchPassword = data.newPassword1 == data.newPassword2
+      if(!matchPassword) return res.status(400).send({message: 'password baru salah'})
+      data.newPassword2 = bcrypt.hashSync(data.newPassword2, 8)
+
+      const sql2 = `UPDATE table_users SET password = '${data.newPassword2}' WHERE id = ${req.user.id}`
+      conn.query(sql2, (err, result) => {
+         if(err) return res.status(500).send(err)
+         
+         res.status(200).send({
+            message: "berhasil"
+         })
+      })
       
+   })
+})
+
+   
    
      
    module.exports = router
