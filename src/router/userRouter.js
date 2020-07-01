@@ -65,10 +65,18 @@ router.post('/user/avatar', auth, upload.single('avatar'), async (req, res) => {
 
 // GET PROFILE
 router.get('/user/profile', auth, (req, res) => {
-   res.status(200).send({
-      ...req.user,
-      avatar : `http://localhost:2022/user/avatar/${req.user.username}?unq=${new Date()}` 
-   })
+
+   const sql = `SELECT * FROM table_detail_users WHERE user_id = ${req.user.id}`
+
+   conn.query(sql, (err, result) => {
+      if(err) return res.status(500).send(err)
+      
+      res.status(200).send(
+         {result,
+          avatar : `http://localhost:2022/user/avatar/${req.user.username}?unq=${new Date()}` 
+         }
+      )
+  })
 })
 
 // GET AVATAR
@@ -129,7 +137,7 @@ router.post('/register', (req, res) => {
    // req.body = {username, name, email, password}
 
    // Query insert data
-   const sql = `INSERT INTO table_detail_users SET ?`
+   const sql = `INSERT INTO table_users SET ? `
    
    const data = req.body
 
@@ -149,7 +157,7 @@ router.post('/register', (req, res) => {
 
       // Kirim email verifikasi
       verifSendEmail(data.username, data.email, resu.insertId)
-      const sql2= `INSERT INTO table_users SET role_id = 2, detail_user_id= ${resu.insertId}`
+      const sql2= `INSERT INTO table_detail_users SET user_id= ${resu.insertId}`
       conn.query(sql2,(err, result) => {
          if(err) return res.status(500).send(err)
       
@@ -168,7 +176,7 @@ router.patch('/user/profile', auth, (req, res) => {
    try {
        // {name, description, stock, price} = req.body
        // {picture} = req.file
-       const sqlUpdate = `UPDATE table_detail_users SET ? WHERE id = ? `
+       const sqlUpdate = `UPDATE table_detail_users SET ? WHERE user_id = ? `
        const dataUpdate = [req.body , req.user.id]
        
        // insert semua data text
@@ -182,7 +190,7 @@ router.patch('/user/profile', auth, (req, res) => {
             })
 
 // LOGOUT
-router.delete('/logout',auth,(req,res) => {
+router.delete('/logout', auth, (req,res) => {
    const sql = `DELETE FROM table_tokens WHERE user_id = ${req.user.id}`
    
    conn.query(sql, (err, result) => {
@@ -255,7 +263,7 @@ router.post('/user/forget',(req,res) => {
    router.post('/user/login', (req, res) => {
       const {username, password} = req.body
    
-      const sql = `SELECT * FROM table_detail_users WHERE username = '${username}'`
+      const sql = `SELECT * FROM table_users WHERE username = '${username}'`
       const sql2 = `INSERT INTO table_tokens SET ?`
       
       conn.query(sql, (err, result) => {
@@ -285,7 +293,7 @@ router.post('/user/forget',(req,res) => {
             delete user.password
             delete user.avatar
             delete user.verified
-            const sql3 = `UPDATE table_users SET token_id = ${result.insertId} WHERE detail_user_id = ${user.id} `
+            const sql3 = `UPDATE table_users SET token_id = ${result.insertId} WHERE id = ${user.id} `
             conn.query(sql3)
             res.status(200).send({
                message: 'Login berhasil',
