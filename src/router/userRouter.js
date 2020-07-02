@@ -175,7 +175,7 @@ router.patch('/user/profile', auth, (req, res) => {
    try {
        // {name, description, stock, price} = req.body
        // {picture} = req.file
-       const sqlUpdate = `UPDATE table_detail_users SET ? WHERE user_id = ? `
+       const sqlUpdate = `UPDATE table_detail_users SET ? WHERE id = ? `
        const dataUpdate = [req.body , req.user.id]
        
        // insert semua data text
@@ -258,52 +258,48 @@ router.post('/user/forget',(req,res) => {
  })
 
 
+// LOGIN USER
+router.post('/user/login', (req, res) => {
+   const {username, password} = req.body
 
-   // LOGIN USER
-   router.post('/user/login', (req, res) => {
-      const {username, password} = req.body
+   const sql = `SELECT * FROM table_users WHERE username = '${username}'`
+   const sql2 = `INSERT INTO table_tokens SET ?`
    
-      const sql = `SELECT * FROM table_users WHERE username = '${username}'`
-      const sql2 = `INSERT INTO table_tokens SET ?`
-      
-      conn.query(sql, (err, result) => {
-         // Cek error
+   conn.query(sql, (err, result) => {
+      // Cek error
+      if(err) return res.status(500).send(err)
+
+      // result = [ {} ]
+      let user = result[0]
+      // Jika username tidak ditemukan
+      if(!user) return res.status(404).send({message: 'username tidak ditemukan'})
+      // Verifikasi password
+      let validPassword = bcrypt.compareSync(password, user.password)
+      // Jika user memasukkan password yang salah
+      if(!validPassword) return res.status(400).send({message: 'password tidak valid'})
+      // Verikasi status verified
+      // if(!user.verified_email) return res.status(401).send({message: 'Anda belum terverifikasi'})
+      if(user.verified_email === 0) return res.status(401).send({message: 'Anda belum terverifikasi'})
+      // Membuat token
+      let token = jwt.sign({ id: user.id}, 'secretcode')
+      // Property user_id dan token merupakan nama kolom yang ada di tabel 'tokens'
+      const data = {user_id : user.id, token : token}
+
+      conn.query(sql2, data, (err, result) => {
          if(err) return res.status(500).send(err)
-   
-         // result = [ {} ]
-         let user = result[0]
-         // Jika username tidak ditemukan
-         if(!user) return res.status(404).send({message: 'username tidak ditemukan'})
-         // Verifikasi password
-         let validPassword = bcrypt.compareSync(password, user.password)
-         // Jika user memasukkan password yang salah
-         if(!validPassword) return res.status(400).send({message: 'password tidak valid'})
-         // Verikasi status verified
-         // if(!user.verified_email) return res.status(401).send({message: 'Anda belum terverifikasi'})
-         if(user.verified_email === 0) return res.status(401).send({message: 'Anda belum terverifikasi'})
-         // Membuat token
-         let token = jwt.sign({ id: user.id}, 'secretcode')
-         // Property user_id dan token merupakan nama kolom yang ada di tabel 'tokens'
-         const data = {user_id : user.id, token : token}
-   
-         conn.query(sql2, data, (err, result) => {
-            if(err) return res.status(500).send(err)
-            
-            // Menghapus beberapa property
-            delete user.password
-            delete user.avatar
-            delete user.verified
-            const sql3 = `UPDATE table_users SET token_id = ${result.insertId} WHERE id = ${user.id} `
-            conn.query(sql3)
-            res.status(200).send({
-               message: 'Login berhasil',
-               user,
-               token
-            })
+         
+         // Menghapus beberapa property
+         delete user.password
+         delete user.avatar
+         delete user.verified
+         const sql3 = `UPDATE table_users SET token_id = ${result.insertId} WHERE id = ${user.id} `
+         conn.query(sql3)
+         res.status(200).send({
+            message: 'Login berhasil',
+            user,
+            token
          })
-   
       })
-   })
 
       //FORGET PASSWORD CHANGE PASSWORD
    router.patch('/user/forget/:user_id', (req,res) => { 
@@ -315,6 +311,8 @@ router.post('/user/forget',(req,res) => {
          res.status(200).send({
             
             message: 'Password has change'})
+   })
+})
 
       })
 
@@ -371,4 +369,4 @@ router.patch('/changepassword',auth, (req, res) => {
    
    
      
-   module.exports = router
+module.exports = router
