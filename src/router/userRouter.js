@@ -334,7 +334,9 @@ router.delete('/deletetoken/:user_id', (req,res) => {
     })
 })
 
-router.post('/change_password',auth, (req, res) => {
+//CHANGE PASSWORD
+
+router.patch('/changepassword',auth, (req, res) => {
    
 
    const sql = `SELECT * FROM table_users WHERE id = ${req.user.id}`
