@@ -46,7 +46,7 @@ router.post('/products', auth, product.single("product_photo"),  (req, res) => {
             // Generate file name
             const fileName = `${shortid.generate()}.png`
             // Simpan gambar
-            await sharp(req.file.buffer).resize(500).png().toFile(`${productsDirectory}/${fileName}`)
+            await sharp(req.file.buffer).resize(1000).png().toFile(`${productsDirectory}/${fileName}`)
             
             const sqlUpdate = `UPDATE table_products SET product_photo = ? WHERE id = ?`
             const dataUpdate = [fileName, result.insertId]
@@ -65,20 +65,6 @@ router.post('/products', auth, product.single("product_photo"),  (req, res) => {
     }
 })
 
-// ADD CATEGORY
-router.post('/products/addcategory', auth, (req, res) => {
-        // {name, description, stock, price} = req.body
-        // {picture} = req.file
-        const sqlInsert = `INSERT INTO table_categories SET ?`
-        const dataInsert = req.body
-
-        // insert semua data text
-        conn.query(sqlInsert, dataInsert, (err, result) => {
-            if (err) return res.status(500).send(err)
-            
-            res.status(200).send(result)
-        })
-})
 
 // UPDATE PRODUCT PHOTO
 router.post('/product/photo/:product_id', auth, product.single('product_photo'), async (req,res) => {
@@ -88,7 +74,7 @@ router.post('/product/photo/:product_id', auth, product.single('product_photo'),
         const fileName = `${shortid.generate()}.png`
         const data = [fileName, req.params.product_id]
         
-        await sharp(req.file.buffer).resize(200).png().toFile(`${productsDirectory}/${fileName}`)
+        await sharp(req.file.buffer).resize(1000).png().toFile(`${productsDirectory}/${fileName}`)
  
         conn.query(sql, data, (err, result) => {
             if (err) return res.status(500).send(err)
@@ -99,7 +85,6 @@ router.post('/product/photo/:product_id', auth, product.single('product_photo'),
     } catch (error) {
         res.status(500).send(error.message)
     }
-    
  }, (err, req, res, next) => { // it should declare 4 parameters, so express know this is function for handling any uncaught error
     res.status(400).send(err.message)
  })
@@ -115,6 +100,10 @@ router.patch('/product/:product_id', auth, (req, res) => {
                 res.status(200).send({message: "Update data berhasil"})
             })    
 })
+
+//////////////////////
+///// R E A D ////////
+/////////////////////
 
 // READ ALL PRODUCTS
 router.get('/products', (req, res) => {
@@ -162,14 +151,18 @@ router.get('/product/picture/:fileName', (req, res) => {
 })
 
 // READ DETAIL PRODUCT
-router.get('/product/:id', (req, res) => {
-    const sqlSelect = `SELECT * FROM table_products WHERE id = ${req.params.id}`
+router.get('/product/:product_id', (req, res) => {
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.rating_id, p.price_basic, p.product_photo, p.status, u.username, u.email, p.created_at, p.updated_at
+    FROM table_products p JOIN table_users u ON p.user_id=u.id WHERE p.id = ${req.params.product_id}`
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
         
         res.status(200).send(result[0])
     })
 })
+
+
 
 // DELETE PRODUCT
 router.delete('/product/:product_id', auth, (req, res) => {
@@ -227,6 +220,49 @@ router.delete('/cart/:cart_id', auth, (req, res) => {
     })
 })
 
+/////////////////////////
+//// C A T E G O R Y ////
+/////////////////////////
+
+// ADD CATEGORY
+router.post('/products/addcategory', auth, (req, res) => {
+    // {name, description, stock, price} = req.body
+    // {picture} = req.file
+    const sqlInsert = `INSERT INTO table_product_categories SET ?`
+    const dataInsert = req.body
+
+    // insert semua data text
+    conn.query(sqlInsert, dataInsert, (err, result) => {
+        if (err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// READ CATEGORY
+router.get('/product/category/:product_id', (req, res) => {
+
+const sqlInsert = `
+SELECT pc.id, pc.product_id, c.category FROM table_product_categories pc join 
+table_categories c ON pc.category_id=c.id WHERE pc.product_id = ${req.params.product_id}`
+
+// insert semua data text
+conn.query(sqlInsert, (err, result) => {
+    if (err) return res.status(500).send(err)
+    
+    res.status(200).send(result)
+})
+})
+
+// DELETE CATEGORY
+router.delete('/product/category/:product_category_id', auth, (req, res) => {
+const sql = `DELETE FROM table_product_categories WHERE id = ${req.params.product_category_id}`
+conn.query(sql, (err, result) => {
+    if(err) return res.status(500).send(err)
+    
+    res.status(200).send({message:"Delete Success"})
+})
+})
 
 ///////////////////////////////
 ///////// A D M I N  //////////
