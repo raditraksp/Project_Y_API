@@ -175,7 +175,7 @@ router.patch('/user/profile', auth, (req, res) => {
    try {
        // {name, description, stock, price} = req.body
        // {picture} = req.file
-       const sqlUpdate = `UPDATE table_detail_users SET ? WHERE id = ? `
+       const sqlUpdate = `UPDATE table_detail_users SET ? WHERE user_id = ? `
        const dataUpdate = [req.body , req.user.id]
        
        // insert semua data text
@@ -227,7 +227,7 @@ router.post('/user/avatar', auth, upload.single('avatar'), async (req,res) => {
    res.status(400).send(err.message)
 })
 
-//FORGET PASSWORD
+//FORGET PASSWORD CEK EMAIL
 router.post('/user/forget',(req,res) => {
     
     const sql = `select * FROM table_users WHERE email = ?`
@@ -300,23 +300,23 @@ router.post('/user/login', (req, res) => {
             token
          })
       })
+   })
+})
 
-      //FORGET PASSWORD CHANGE PASSWORD
-   router.patch('/user/forget/:user_id', (req,res) => { 
+     //FORGET PASSWORD CHANGE PASSWORD
+     router.patch('/user/forget/:user_id', (req,res) => { 
       const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
       const data = req.body
       data.password = bcrypt.hashSync(data.password, 8)
       conn.query(sqlUpdate,data, (err, result) => {
          if(err) return res.status(500).send(err)
-         res.status(200).send({
-            
-            message: 'Password has change'})
-   })
+         res.status(200).send(console.log(data.password))
+})
 })
 
-      })
+ 
 
-   })
+
 
    // DELETE TOKEN
 router.delete('/deletetoken/:user_id', (req,res) => {
@@ -366,6 +366,30 @@ router.patch('/changepassword',auth, (req, res) => {
    })
 })
 
+// READ OWN transaction
+router.get('/historytransaction/me', auth, (req, res) => {
+   const sqlSelect = `
+   SELECT t.id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status
+   FROM table_transaction t
+   JOIN table_users u ON t.seller_id = u.id
+   WHERE user_id = ${req.user.id} AND status = 4 OR 2`
+
+   conn.query(sqlSelect, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
+   
+})
+
+router.get('/report/product',auth,(req,res) => {
+   const sql = `SELECT * FROM table_products WHERE user_id = ${req.user.id}`
+
+   conn.query(sql, (err,result) => {
+      if(err) return res.status(500).send(err)
+      res.status(200).send(result)
+   })
+})
    
    
      
