@@ -153,7 +153,7 @@ router.get('/product/picture/:fileName', (req, res) => {
 // READ DETAIL PRODUCT
 router.get('/product/:product_id', (req, res) => {
     const sqlSelect = `
-    SELECT p.id, p.product, p.user_id, p.rating_id, p.price_basic, p.product_photo, p.status, u.username, u.email, p.created_at, p.updated_at
+    SELECT p.id, p.product, p.user_id, p.rating_id, p.price_basic, p.detail_product, p.price_premium, p.detail_basic, p.detail_premium, p.product_photo, p.status, u.username, u.email, p.created_at, p.updated_at
     FROM table_products p JOIN table_users u ON p.user_id=u.id WHERE p.id = ${req.params.product_id}`
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
