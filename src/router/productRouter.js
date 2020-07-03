@@ -268,4 +268,49 @@ router.get('/rejected/admin/:product_id', auth, (req, res) => {
     })
 })
 
+///////////////////////////////
+///////// O R D E R S  ////////
+//////////////////////////////
+
+// ADD TO ORDERS
+router.post('/orders', auth,  (req, res) => {
+    // Memasukkan data Order dari Cart
+    const sqlInsertOrder = `
+        INSERT INTO
+            table_orders(user_id, seller_id, product_id, product_name, total_amount, detail_order, status)
+        VALUES ?
+    `
+
+    // Mengambil data Order dari Cart
+    const dataInsertOrder = req.body.carts.map(cart => (
+        [cart.user_id, cart.seller_id, cart.product_id, cart.product_name, cart.price, cart.detail_product, cart.status]
+    ))
+
+    conn.query(sqlInsertOrder, [dataInsertOrder], (err, result) => {
+        if(err) return res.status(500).send(err)
+
+        // Delete Cart
+        const sqlDeleteCarts = `DELETE FROM table_carts WHERE user_id = ${req.user.id}`
+        conn.query(sqlDeleteCarts, (err, results) => {
+            if(err) return res.status(500).send(err)
+            
+            res.status(200).send({message:'Checkout success!'})
+
+        })
+    })
+})
+
+
+
+// READ ORDERS
+router.get('/orders', auth, (req, res) => {
+    const sqlSelect = `SELECT * FROM table_orders WHERE ${req.user.id} = user_id OR seller_id`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
 module.exports = router
