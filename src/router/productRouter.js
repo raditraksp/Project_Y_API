@@ -19,16 +19,16 @@ const productsDirectory = path.join(__dirname, '../assets/products')
 
 const product = multer({
    // storage: storage,
-   limits: {
+    limits: {
        fileSize: 100000000 // Byte , default 1MB
-   },
-   fileFilter(req, file, cb) {
-       if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){ // will be error if the extension name is not one of these
-           return cb(new Error('Please upload image file (jpg, jpeg, or png)')) 
-       }
+    },
+    fileFilter(req, file, cb) {
+        if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){ // will be error if the extension name is not one of these
+            return cb(new Error('Please upload image file (jpg, jpeg, or png)')) 
+        }
 
-       cb(undefined, true)
-   }
+    cb(undefined, true)
+    }
 })
 
 // POST PRODUCT
@@ -54,11 +54,8 @@ router.post('/products', auth, product.single("product_photo"),  (req, res) => {
             // Simpan nama gambar
             conn.query(sqlUpdate, dataUpdate, (err, result) => {
                 if (err) return res.status(500).send(err)
-
                 res.status(200).send({message: "Insert data berhasil"})
-            })
-         
-
+            })    
         })
     } catch (err) {
         res.status(500).send(err)
@@ -274,18 +271,16 @@ router.get('/rejected/admin/:product_id', auth, (req, res) => {
 
 // ADD TO ORDERS
 router.post('/orders', auth,  (req, res) => {
-    // Memasukkan data Order dari Cart
+    // Memasukkan data Order dari table_carts
     const sqlInsertOrder = `
         INSERT INTO
             table_orders(user_id, seller_id, product_id, product_name, total_amount, detail_order, status)
         VALUES ?
     `
-
-    // Mengambil data Order dari Cart
+    // Mengambil data Order dari table_carts
     const dataInsertOrder = req.body.carts.map(cart => (
         [cart.user_id, cart.seller_id, cart.product_id, cart.product_name, cart.price, cart.detail_product, cart.status]
     ))
-
     conn.query(sqlInsertOrder, [dataInsertOrder], (err, result) => {
         if(err) return res.status(500).send(err)
 
@@ -295,22 +290,98 @@ router.post('/orders', auth,  (req, res) => {
             if(err) return res.status(500).send(err)
             
             res.status(200).send({message:'Checkout success!'})
-
         })
     })
 })
 
-
-
-// READ ORDERS
+// READ ORDERS USER
 router.get('/orders', auth, (req, res) => {
-    const sqlSelect = `SELECT * FROM table_orders WHERE ${req.user.id} = user_id OR seller_id`
+    // Mengambil data dari table_order yang dijoin dengan table_users
+    const sqlUser = `
+    SELECT o.id, o.user_id, o.seller_id, o.product_id, o.product_name, o.total_amount, 
+    o.detail_order, o.payment_photo, o.status, o.payment_photo, u.username FROM table_orders o 
+    JOIN table_users u ON o.seller_id = u.id OR o.user_id = u.id
+    `
+    conn.query(sqlUser, (err, result) => {
+        if(err) return res.status(500).send(err)
+    
+        res.status(200).send(result)
+    })
+})
 
-    conn.query(sqlSelect, (err, result) => {
+// DELETE ORDER BY USER
+router.delete('/orders/:orders_id', auth, (req, res) => {
+    // Mengupdate status = 2
+    const sqlUpdate = `UPDATE table_orders SET status=2 WHERE id = ${req.params.orders_id}`
+    conn.query(sqlUpdate, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        // Menghapus data Order
+        const sqlDelete = `DELETE FROM table_orders WHERE id = ${req.params.orders_id}`
+        conn.query(sqlDelete, (err, result) => {
+            if(err) return res.status(500).send(err)
+            
+            res.status(200).send({message:"Delete Success"})
+        })  
+    })
+})
+
+// UPDATE STATUS ORDER (ACCEPTED BY SELLER)
+router.get('/accepted/orders/:orders_id', auth, (req, res) => {
+    const sqlUpdate = `UPDATE table_orders SET status=1 WHERE id = ${req.params.orders_id}`
+
+    conn.query(sqlUpdate, (err, result) => {
         if(err) return res.status(500).send(err)
         
         res.status(200).send(result)
     })
+})
+
+// UPDATE STATUS ORDER (REJECTED BY SELLER)
+router.get('/rejected/orders/:orders_id', auth, (req, res) => {
+    const sqlUpdate = `UPDATE table_orders SET status=2 WHERE id = ${req.params.orders_id}`
+
+    conn.query(sqlUpdate, (err, result) => {
+        if(err) return res.status(500).send(err)
+
+        res.status(200).send(result)
+    })
+})
+
+// UPLOAD BUKTI TRANSFER
+const upload = multer({
+    limits: {
+        fileSize: 10000000 // Byte , default 1MB
+    },
+    fileFilter(req, file, cb) {
+        if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){ // will be error if the extension name is not one of these
+            return cb(new Error('Please upload image file (jpg, jpeg, or png)')) 
+        }
+        cb(undefined, true)
+    }
+})
+
+const buktiTrxDirectory = path.join(__dirname, '../assets/payment_photos')
+
+router.post('/orders/:orders_id/payment_photo', auth, upload.single('payment_photo'), async (req, res) => {
+
+    try {
+        const fileName = `${req.params.orders_id}-payment.png`
+        const sqlUpdate = `UPDATE table_orders SET payment_photo = ? WHERE id = ${req.params.orders_id}`
+        const data = [fileName, req.params.orders_id]
+
+        await sharp(req.file.buffer).resize(300).png().toFile(`${buktiTrxDirectory}/${fileName}`)
+
+        conn.query(sqlUpdate, data, (err, result) =>{
+            if(err) return res.status(500).send(err)
+
+            res.status(201).send({message: 'Bukti transfer berhasil di upload'})
+        })
+    } catch (err) {
+        res.status(500).send(err.message)
+    }
+}, (err, req, res, next) => {
+    res.send(err)
 })
 
 module.exports = router
