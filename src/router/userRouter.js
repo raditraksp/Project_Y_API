@@ -9,6 +9,8 @@ const sharp = require('sharp')
 const path = require('path')
 const jwt = require('../config/token')
 const auth = require('../config/auth')
+const shortid = require('shortid')
+
 
 
 const upload = multer({
@@ -79,6 +81,18 @@ router.get('/user/profile', auth, (req, res) => {
   })
 })
 
+// GET SELLER
+router.get('/user/seller', (req, res) => {
+
+   const sql = `SELECT * FROM table_detail_users`
+
+   conn.query(sql, (err, result) => {
+      if(err) return res.status(500).send(err)
+      
+      res.status(200).send(result)
+  })
+})
+
 // GET AVATAR
 router.get('/user/avatar/:id', (req, res) => {
    // Menyimpan username pada variable
@@ -128,6 +142,17 @@ router.get('/verify/:userid', (req, res) => {
    })
 })
 
+// GET TABLE USERS
+router.get('/user', auth, (req, res) => {
+
+   const sql = `SELECT * FROM table_users WHERE user_id = ${req.user.id}`
+
+   conn.query(sql, (err, result) => {
+      if(err) return res.status(500).send(err)
+      
+  })
+})
+
 /////////////
 // P O S T //
 ////////////
@@ -173,20 +198,18 @@ router.post('/register', (req, res) => {
 // EDIT users
 router.patch('/user/profile', auth, (req, res) => {
    try {
-       // {name, description, stock, price} = req.body
-       // {picture} = req.file
        const sqlUpdate = `UPDATE table_detail_users SET ? WHERE user_id = ? `
        const dataUpdate = [req.body , req.user.id]
        
        // insert semua data text
        conn.query(sqlUpdate, dataUpdate, (err, result) => {
            if (err) return res.status(500).send(err)
-               res.status(200).send({message: "Update data berhasil"})
+               res.status(200).send(result)
            })
                 } catch (err) {
                 res.status(500).send(err)
                }
-            })
+})
 
 // LOGOUT
 router.delete('/logout', auth, (req,res) => {
@@ -207,7 +230,7 @@ router.delete('/logout', auth, (req,res) => {
 router.post('/user/avatar', auth, upload.single('avatar'), async (req,res) => {
 
    try {
-       const sql = `UPDATE table_detail_users SET avatar = ? WHERE id = ?`
+       const sql = `UPDATE table_detail_users SET avatar = ? WHERE user_id = ?`
        const fileName = `${shortid.generate()}.png`
        const data = [fileName, req.user.id]
        
@@ -301,24 +324,40 @@ router.post('/user/login', (req, res) => {
          })
       })
    })
+
 })
 
-     //FORGET PASSWORD CHANGE PASSWORD
-     router.patch('/user/forget/:user_id', (req,res) => { 
-      const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
-      const data = req.body
-      data.password = bcrypt.hashSync(data.password, 8)
-      conn.query(sqlUpdate,data, (err, result) => {
-         if(err) return res.status(500).send(err)
-         res.status(200).send(console.log(data.password))
+
+// FORGET PASSWORD CHANGE PASSWORD
+router.patch('/user/forget/:token/:user_id', (req,res) => { 
+   const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
+   const data = req.body
+   data.password = bcrypt.hashSync(data.password, 8)
+   conn.query(sqlUpdate,data, (err, result) => {
+      if(err) return res.status(500).send(err)
+      res.status(200).send({
+         
+         message: 'Password has change'})
 })
 })
 
- 
+// router.patch('/user/forget/:token/:user_id', (req,res) => { 
+//     const sqltoken = `SELECT * FROM table_tokens WHERE token = ${req.params.token}`
+//     conn.query(sqltoken,(err,res) => {
+//         if(res.length == 0 ) return res.status(501).send(err)
+//      const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
+//      const data = req.body
+//      data.password = bcrypt.hashSync(data.password, 8)
+//      conn.query(sqlUpdate,data, (err, result) => {
+//         if(err) return res.status(500).send(err)
+//         res.status(200).send({
+           
+//            message: 'Password has change'})
+//              })
+//           })
+//      })
 
-
-
-   // DELETE TOKEN
+// DELETE TOKEN
 router.delete('/deletetoken/:user_id', (req,res) => {
    const sql = `DELETE FROM table_tokens WHERE user_id = ${req.params.user_id}`
    
@@ -331,9 +370,11 @@ router.delete('/deletetoken/:user_id', (req,res) => {
       })
     })
 })
-
-//CHANGE PASSWORD
-
+///////////////////////////////////////
+//CHANGE PASSWORD BUKAN LUPA PASSWORD//
+//CHANGE PASSWORD BUKAN LUPA PASSWORD//
+//CHANGE PASSWORD BUKAN LUPA PASSWORD//
+///////////////////////////////////////
 router.patch('/changepassword',auth, (req, res) => {
    
 
@@ -374,6 +415,10 @@ router.get('/historytransaction/me', auth, (req, res) => {
    JOIN table_users u ON t.seller_id = u.id
    WHERE user_id = ${req.user.id} AND status = 4 OR 2`
 
+// BECOME a SELLER
+router.get('/becomeseller', auth, (req, res) => {
+   const sqlSelect = `UPDATE table_users SET role_id = 3 WHERE id= ${req.user.id}`
+
    conn.query(sqlSelect, (err, result) => {
        if(err) return res.status(500).send(err)
        
@@ -390,7 +435,65 @@ router.get('/report/product',auth,(req,res) => {
       res.status(200).send(result)
    })
 })
+})
    
+// UPDATE AVATAR
+const transferDirectory = path.join(__dirname, '../assets/transfer_sub')
+
+router.post('/transfer_photo', auth, upload.single('transfer_photo'), async (req,res) => {
+
+   try {
+       const sql = `INSERT INTO table_upgrade_users SET transfer_photo = ? , user_id = ? , status=0`
+       const fileName = `${shortid.generate()}.png`
+       const data = [fileName, req.user.id]
+       
+       await sharp(req.file.buffer).resize(500).png().toFile(`${transferDirectory}/${fileName}`)
+
+       conn.query(sql, data, (err, result) => {
+           if (err) return res.status(500).send(err)
+
+           res.status(200).send({message: "Kirim data berhasil"})
+
+       })
+   } catch (error) {
+       res.status(500).send(error.message)
+   }
    
+}, (err, req, res, next) => { // it should declare 4 parameters, so express know this is function for handling any uncaught error
+   res.status(400).send(err.message)
+})
+   
+// GET TRANSFER PHOTO UPGRADE
+// READ OWN PRODUCTS
+router.get('/products/me', auth, (req, res) => {
+   const sqlSelect = `
+   SELECT *
+   FROM table_products  
+   WHERE user_id = ${req.user.id}`
+
+   conn.query(sqlSelect, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
+   
+})
+
+// READ PRODUCT IMAGE
+router.get('/transferphoto/:fileName', (req, res) => {
+   var options = { 
+       root: productsDirectory // Direktori foto disimpan
+   };      
+   
+   var fileName = req.params.fileName;
+   
+   res.status(200).sendFile(fileName, options, function (err) {
+       if (err) {
+           return res.status(404).send({message: "Image not found"})
+       } 
+       
+       console.log('Sent:', fileName);
+   });
+})
      
 module.exports = router
