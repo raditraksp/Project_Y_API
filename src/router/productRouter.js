@@ -265,6 +265,59 @@ router.get('/rejected/admin/:product_id', auth, (req, res) => {
     })
 })
 
+// READ ALL ORDERS ADMIN
+router.get('/orders/admin', auth, (req, res) => {
+    const sqlSelect = `SELECT id, payment_photo, status 
+    FROM table_orders
+    WHERE status = 1`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+const ordersDirectory = path.join(__dirname, '../assets/payment_photos')
+
+// READ PAYMENT PHOTO ORDERS
+router.get('/orders/:orders_id/payment/:fileName', (req, res) => {
+    var options = { 
+        root: ordersDirectory // Direktori foto disimpan
+    };      
+    
+    var fileName = req.params.fileName;
+    
+    res.status(200).sendFile(fileName, options, function (err) {
+        if (err) {
+            return res.status(404).send({message: "Image not found"})
+        } 
+        console.log('Sent:', fileName);
+    });
+})
+
+// APPROVED PAYMENT BY ADMIN
+router.get('/orders/:orders_id/approved/admin', auth, (req, res) => {
+    const sqlSelect = `UPDATE table_orders SET status=3 WHERE id= ${req.params.orders_id}`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// REJECTED PAYMENT BY ADMIN
+router.get('/orders/:orders_id/rejected/admin', auth, (req, res) => {
+    const sqlSelect = `UPDATE table_orders SET status=4 WHERE id= ${req.params.orders_id}`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
 ///////////////////////////////
 ///////// O R D E R S  ////////
 //////////////////////////////
@@ -382,6 +435,38 @@ router.post('/orders/:orders_id/payment_photo', auth, upload.single('payment_pho
     }
 }, (err, req, res, next) => {
     res.send(err)
+})
+
+// UPDATE STATUS ORDER (FINISH BY SELLER)
+router.get('/seller_finish/orders/:orders_id', auth, (req, res) => {
+    const sqlUpdate = `UPDATE table_orders SET status=5 WHERE id = ${req.params.orders_id}`
+
+    conn.query(sqlUpdate, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// UPDATE STATUS ORDER (FINISH BY USER)
+router.get('/user_finish/orders/:orders_id', auth, (req, res) => {
+    const sqlUpdate = `UPDATE table_orders SET status=6 WHERE id = ${req.params.orders_id}`
+
+    conn.query(sqlUpdate, (err, result) => {
+        if(err) return res.status(500).send(err)
+
+            const sqlInsertTrx =`
+                INSERT INTO table_transaction(order_id, user_id, seller_id, product_id, product_name, total_amount, detail_order, order_time, status)
+                SELECT id, user_id, seller_id, product_id, product_name, total_amount, detail_order, order_time, status FROM table_orders
+                WHERE id = ${req.params.orders_id}
+            `
+            // const dataInsertTrx = [order.id, order.user_id, order.seller_id, order.product_id, order.product_name, order.total_amount, order.detail_order, order.order_time, order.status]
+            conn.query(sqlInsertTrx, (err, result) => {
+                if(err) return res.status(500).send(err)
+    
+                res.status(200).send({message: 'Transaksi selesai!'})
+            })
+    })
 })
 
 module.exports = router
