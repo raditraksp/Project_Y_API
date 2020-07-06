@@ -329,16 +329,50 @@ router.post('/user/login', (req, res) => {
 
 
 // FORGET PASSWORD CHANGE PASSWORD
-router.patch('/user/forget/:token/:user_id', (req,res) => { 
-   const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
-   const data = req.body
-   data.password = bcrypt.hashSync(data.password, 8)
-   conn.query(sqlUpdate,data, (err, result) => {
-      if(err) return res.status(500).send(err)
-      res.status(200).send({
+// router.patch('/user/forget/:token/:user_id', (req,res) => { 
+//    const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
+//    const data = req.body
+//    data.password = bcrypt.hashSync(data.password, 8)
+//    conn.query(sqlUpdate,data, (err, result) => {
+//       if(err) return res.status(500).send(err)
+//       res.status(200).send({
          
-         message: 'Password has change'})
-})
+//          message: 'Password has change'})
+// })
+// })
+
+// GANTI PASSWORD DENGAN PASSWORD BARU
+router.patch('/user/forget/:token/:id', (req, res) => {
+   const sql = `SELECT * FROM table_tokens WHERE token = "${req.params.token}"`
+   //jangan lupa cek pass yang lama dan yang baru d frontend
+   // data.password = bcrypt.hashSync(data.password, 8)
+   // ambil data dulu baru d patch
+   
+   // id dari auth, auth dari frontend
+   conn.query(sql, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       const id = result[0].user_id
+       
+       const {password2} = req.body
+       // console.log(secondPass)
+       let password = bcrypt.hashSync(password2, 8)
+       // console.log(password, id)
+       const sqlUpdate = `UPDATE table_users SET password = '${password}' WHERE id = ${id}`
+       if(id == req.params.id) {
+           const sqlDelete = `DELETE from table_tokens WHERE user_id = ${id}`
+
+           return conn.query(sqlUpdate, (err, result) => {
+               if(err) return res.status(500).send(err)
+               
+               conn.query(sqlDelete, (err, res) => {
+                   if(err) return res.status(500).send(err)
+               })
+               res.status(200).send('Password berhasil diubah')
+           })   
+       }
+       res.status(200).send('Anda tidak memiliki akses untuk mengganti password pada account ini')
+   })
 })
 
 // router.patch('/user/forget/:token/:user_id', (req,res) => { 
