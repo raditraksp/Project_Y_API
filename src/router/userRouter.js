@@ -470,14 +470,15 @@ router.get('/report/product',auth,(req,res) => {
    })
 })
 })
-   
-// UPDATE AVATAR
+//////////////////////////////////
+/////// SEND BUKTI TRANSFER//////
+/////////////////////////////////
 const transferDirectory = path.join(__dirname, '../assets/transfer_sub')
 
 router.post('/transfer_photo', auth, upload.single('transfer_photo'), async (req,res) => {
 
    try {
-       const sql = `INSERT INTO table_upgrade_users SET transfer_photo = ? , user_id = ? , status=0`
+       const sql = `INSERT INTO table_upgrade_users SET transfer_photo = ? , user_id = ? , status = 0`
        const fileName = `${shortid.generate()}.png`
        const data = [fileName, req.user.id]
        
@@ -493,6 +494,29 @@ router.post('/transfer_photo', auth, upload.single('transfer_photo'), async (req
        res.status(500).send(error.message)
    }
    
+}, (err, req, res, next) => { // it should declare 4 parameters, so express know this is function for handling any uncaught error
+   res.status(400).send(err.message)
+})
+
+// UPDATE TRANSFER UPGRADE PHOTO
+router.post('/transfer_photo/again', auth, upload.single('transfer_photo'), async (req,res) => {
+
+   try {
+      const sql = `UPDATE table_upgrade_users SET transfer_photo = ? , status = 0 WHERE user_id= ?`
+      const fileName = `${shortid.generate()}.png`
+      const data = [fileName, req.user.id]
+      
+      await sharp(req.file.buffer).resize(500).png().toFile(`${transferDirectory}/${fileName}`)
+
+      conn.query(sql, data, (err, result) => {
+          if (err) return res.status(500).send(err)
+
+          res.status(200).send({message: "Kirim data berhasil"})
+
+      })
+   } catch (error) {
+         res.status(500).send(error.message)
+   }
 }, (err, req, res, next) => { // it should declare 4 parameters, so express know this is function for handling any uncaught error
    res.status(400).send(err.message)
 })
@@ -548,7 +572,7 @@ router.get('/approved/upgrade/:user_id', auth, (req, res) => {
 
 // REJECTED UPGRADE BY ADMIN
 router.get('/rejected/upgrade/:user_id', auth, (req, res) => {
-   const sqlSelect = `UPDATE table_upgrade_users SET status=2 WHERE user_id= ${req.params.user_user_id}`
+   const sqlSelect = `UPDATE table_upgrade_users SET status=2 WHERE user_id= ${req.params.user_id}`
 
    conn.query(sqlSelect, (err, result) => {
        if(err) return res.status(500).send(err)
