@@ -476,22 +476,22 @@ router.get('/approved/upgrade/:user_id', auth, (req, res) => {
    })
 })
 
-// DELETE TABLE TRANSFER UPGRADE
-router.delete('/upgrade/:user_id', auth, (req, res) => {
-   const sql = `DELETE FROM table_upgrade_users WHERE user_id= ${req.params.user_id}`
+// REJECTED UPGRADE BY ADMIN
+router.get('/rejected/upgrade/:user_id', auth, (req, res) => {
+   const sqlSelect = `UPDATE table_upgrade_users SET status=2 WHERE user_id= ${req.params.user_user_id}`
 
-   conn.query(sql, (err, result) => {
+   conn.query(sqlSelect, (err, result) => {
        if(err) return res.status(500).send(err)
        
        res.status(200).send(result)
    })
 })
 
-// REJECTED UPGRADE BY ADMIN
-router.get('/rejected/upgrade/:user_id', auth, (req, res) => {
-   const sqlSelect = `UPDATE table_upgrade_users SET status=2 WHERE id= ${req.params.user_id}`
+// DELETE TABLE TRANSFER UPGRADE
+router.delete('/upgrade/:user_id', auth, (req, res) => {
+   const sql = `DELETE FROM table_upgrade_users WHERE user_id= ${req.params.user_id}`
 
-   conn.query(sqlSelect, (err, result) => {
+   conn.query(sql, (err, result) => {
        if(err) return res.status(500).send(err)
        
        res.status(200).send(result)
