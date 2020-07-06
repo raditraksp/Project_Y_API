@@ -250,7 +250,7 @@ router.post('/user/avatar', auth, upload.single('avatar'), async (req,res) => {
    res.status(400).send(err.message)
 })
 
-//FORGET PASSWORD
+//FORGET PASSWORD CEK EMAIL
 router.post('/user/forget',(req,res) => {
     
     const sql = `select * FROM table_users WHERE email = ?`
@@ -329,17 +329,67 @@ router.post('/user/login', (req, res) => {
 
 
 // FORGET PASSWORD CHANGE PASSWORD
-router.patch('/user/forget/:token/:user_id', (req,res) => { 
-   const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
-   const data = req.body
-   data.password = bcrypt.hashSync(data.password, 8)
-   conn.query(sqlUpdate,data, (err, result) => {
-      if(err) return res.status(500).send(err)
-      res.status(200).send({
+// router.patch('/user/forget/:token/:user_id', (req,res) => { 
+//    const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
+//    const data = req.body
+//    data.password = bcrypt.hashSync(data.password, 8)
+//    conn.query(sqlUpdate,data, (err, result) => {
+//       if(err) return res.status(500).send(err)
+//       res.status(200).send({
          
-         message: 'Password has change'})
+//          message: 'Password has change'})
+// })
+// })
+
+// GANTI PASSWORD DENGAN PASSWORD BARU
+router.patch('/user/forget/:token/:id', (req, res) => {
+   const sql = `SELECT * FROM table_tokens WHERE token = "${req.params.token}"`
+   //jangan lupa cek pass yang lama dan yang baru d frontend
+   // data.password = bcrypt.hashSync(data.password, 8)
+   // ambil data dulu baru d patch
+   
+   // id dari auth, auth dari frontend
+   conn.query(sql, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       const id = result[0].user_id
+       
+       const {password2} = req.body
+       // console.log(secondPass)
+       let password = bcrypt.hashSync(password2, 8)
+       // console.log(password, id)
+       const sqlUpdate = `UPDATE table_users SET password = '${password}' WHERE id = ${id}`
+       if(id == req.params.id) {
+           const sqlDelete = `DELETE from table_tokens WHERE user_id = ${id}`
+
+           return conn.query(sqlUpdate, (err, result) => {
+               if(err) return res.status(500).send(err)
+               
+               conn.query(sqlDelete, (err, res) => {
+                   if(err) return res.status(500).send(err)
+               })
+               res.status(200).send('Password berhasil diubah')
+           })   
+       }
+       res.status(200).send('Anda tidak memiliki akses untuk mengganti password pada account ini')
+   })
 })
-})
+
+// router.patch('/user/forget/:token/:user_id', (req,res) => { 
+//     const sqltoken = `SELECT * FROM table_tokens WHERE token = ${req.params.token}`
+//     conn.query(sqltoken,(err,res) => {
+//         if(res.length == 0 ) return res.status(501).send(err)
+//      const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
+//      const data = req.body
+//      data.password = bcrypt.hashSync(data.password, 8)
+//      conn.query(sqlUpdate,data, (err, result) => {
+//         if(err) return res.status(500).send(err)
+//         res.status(200).send({
+           
+//            message: 'Password has change'})
+//              })
+//           })
+//      })
 
 // DELETE TOKEN
 router.delete('/deletetoken/:user_id', (req,res) => {
@@ -354,9 +404,11 @@ router.delete('/deletetoken/:user_id', (req,res) => {
       })
     })
 })
-
-//CHANGE PASSWORD
-
+///////////////////////////////////////
+//CHANGE PASSWORD BUKAN LUPA PASSWORD//
+//CHANGE PASSWORD BUKAN LUPA PASSWORD//
+//CHANGE PASSWORD BUKAN LUPA PASSWORD//
+///////////////////////////////////////
 router.patch('/changepassword',auth, (req, res) => {
    
 
@@ -389,6 +441,13 @@ router.patch('/changepassword',auth, (req, res) => {
    })
 })
 
+// READ OWN transaction
+router.get('/historytransaction/me', auth, (req, res) => {
+   const sqlSelect = `
+   SELECT t.id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status
+   FROM table_transaction t
+   JOIN table_users u ON t.seller_id = u.id
+   WHERE user_id = ${req.user.id} AND status = 4 OR 2`
 
 // BECOME a SELLER
 router.get('/becomeseller', auth, (req, res) => {
@@ -399,6 +458,17 @@ router.get('/becomeseller', auth, (req, res) => {
        
        res.status(200).send(result)
    })
+   
+})
+
+router.get('/report/product',auth,(req,res) => {
+   const sql = `SELECT * FROM table_products WHERE user_id = ${req.user.id}`
+
+   conn.query(sql, (err,result) => {
+      if(err) return res.status(500).send(err)
+      res.status(200).send(result)
+   })
+})
 })
    
 // UPDATE AVATAR

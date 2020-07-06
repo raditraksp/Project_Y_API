@@ -153,7 +153,7 @@ router.get('/product/picture/:fileName', (req, res) => {
 // READ DETAIL PRODUCT
 router.get('/product/:product_id', (req, res) => {
     const sqlSelect = `
-    SELECT p.id, p.product, p.user_id, p.rating_id, p.price_basic, p.product_photo, p.status, u.username, u.email, p.created_at, p.updated_at
+    SELECT p.id, p.product, p.user_id, p.rating_id, p.price_basic,p.detail_product,p.price_premium,p.detail_basic,p.detail_premium, p.product_photo, p.status, u.username, u.email, p.created_at, p.updated_at
     FROM table_products p JOIN table_users u ON p.user_id=u.id WHERE p.id = ${req.params.product_id}`
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
@@ -303,5 +303,50 @@ router.get('/rejected/admin/:product_id', auth, (req, res) => {
         res.status(200).send(result)
     })
 })
+
+router.get('/product/search/category', (req, res) => {
+    const sqlSelect = `
+    select pc.id, pc.product_id, u.username, pc.category_id, category, product, p.user_id, detail_basic, detail_product, detail_premium, price_basic, price_premium, product_photo, status
+    from table_product_categories pc join table_categories c on pc.category_id = c.id join table_products p on pc.product_id = p.id join table_users u on p.user_id=u.id where status=1`
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+router.get('/chart/products',auth,(req,res) => {
+    const sqlSelect = `
+    select * from table_transaction where seller_id = ${req.user.id}`
+    conn.query(sqlSelect,(err,result) => {
+        if(err) return res.status(500).send(err)
+        res.status(200).send(result)
+    })
+})
+
+router.get('/report/count', auth,(req,res) => {
+    const sqlSelect = `SELECT  date(order_time) as time , seller_id, product_name, COUNT(*) as 'total_jual'
+    from table_transaction 
+    where seller_id = ${req.user.id}
+    GROUP BY product_name`
+    conn.query(sqlSelect,(err,result) => {
+        if(err) return res.status(500).send(err)
+        res.status(200).send(result)
+    })
+})
+
+router.get('/report/line',auth,(req,res) => {
+    const sqlSelect = `SELECT  date(order_time) as time , seller_id, product_name, COUNT(product_name) as 'total_jual'
+    from table_transaction 
+    where seller_id = ${req.user.id}
+    GROUP BY time, product_name 
+    ORDER BY 1;`
+    conn.query(sqlSelect,(err,result) => {
+        if(err) return res.status(500).send(err)
+        res.status(200).send(result)
+    })
+})
+
+
 
 module.exports = router
