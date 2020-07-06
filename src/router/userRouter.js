@@ -9,6 +9,8 @@ const sharp = require('sharp')
 const path = require('path')
 const jwt = require('../config/token')
 const auth = require('../config/auth')
+const shortid = require('shortid')
+
 
 
 const upload = multer({
@@ -16,11 +18,11 @@ const upload = multer({
        fileSize: 10000000 // Byte , default 1MB
    },
    fileFilter(req, file, cb) {
-       if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){ // will be error if the extension name is not one of these
-           return cb(new Error('Please upload image file (jpg, jpeg, or png)')) 
-       }
+      if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){ // will be error if the extension name is not one of these
+         return cb(new Error('Please upload image file (jpg, jpeg, or png)')) 
+      }
 
-       cb(undefined, true)
+      cb(undefined, true)
    }
 })
 
@@ -73,10 +75,22 @@ router.get('/user/profile', auth, (req, res) => {
       
       res.status(200).send(
          {result,
-          avatar : `http://localhost:2022/user/avatar/${req.user.username}?unq=${new Date()}` 
+            avatar : `http://localhost:2022/user/avatar/${req.user.username}?unq=${new Date()}` 
          }
       )
-  })
+   })
+})
+
+// GET SELLER
+router.get('/user/seller', (req, res) => {
+
+   const sql = `SELECT * FROM table_detail_users`
+
+   conn.query(sql, (err, result) => {
+      if(err) return res.status(500).send(err)
+      
+      res.status(200).send(result)
+   })
 })
 
 // GET AVATAR
@@ -128,6 +142,17 @@ router.get('/verify/:userid', (req, res) => {
    })
 })
 
+// GET TABLE USERS
+router.get('/user', auth, (req, res) => {
+
+   const sql = `SELECT * FROM table_users WHERE user_id = ${req.user.id}`
+
+   conn.query(sql, (err, result) => {
+      if(err) return res.status(500).send(err)
+      
+  })
+})
+
 /////////////
 // P O S T //
 ////////////
@@ -173,19 +198,17 @@ router.post('/register', (req, res) => {
 // EDIT users
 router.patch('/user/profile', auth, (req, res) => {
    try {
-       // {name, description, stock, price} = req.body
-       // {picture} = req.file
-      const sqlUpdate = `UPDATE table_detail_users SET ? WHERE id = ? `
-      const dataUpdate = [req.body , req.user.id]
-
-      // insert semua data text
-      conn.query(sqlUpdate, dataUpdate, (err, result) => {
-         if (err) return res.status(500).send(err)
-               res.status(200).send({message: "Update data berhasil"})
-      })
-   } catch (err) {
-               res.status(500).send(err)
-   }
+       const sqlUpdate = `UPDATE table_detail_users SET ? WHERE user_id = ? `
+       const dataUpdate = [req.body , req.user.id]
+       
+       // insert semua data text
+       conn.query(sqlUpdate, dataUpdate, (err, result) => {
+           if (err) return res.status(500).send(err)
+               res.status(200).send(result)
+           })
+                } catch (err) {
+                res.status(500).send(err)
+               }
 })
 
 // LOGOUT
@@ -207,7 +230,7 @@ router.delete('/logout', auth, (req,res) => {
 router.post('/user/avatar', auth, upload.single('avatar'), async (req,res) => {
 
    try {
-       const sql = `UPDATE table_detail_users SET avatar = ? WHERE id = ?`
+       const sql = `UPDATE table_detail_users SET avatar = ? WHERE user_id = ?`
        const fileName = `${shortid.generate()}.png`
        const data = [fileName, req.user.id]
        
@@ -227,7 +250,7 @@ router.post('/user/avatar', auth, upload.single('avatar'), async (req,res) => {
    res.status(400).send(err.message)
 })
 
-//FORGET PASSWORD
+//FORGET PASSWORD CEK EMAIL
 router.post('/user/forget',(req,res) => {
     
     const sql = `select * FROM table_users WHERE email = ?`
@@ -300,25 +323,75 @@ router.post('/user/login', (req, res) => {
             token
          })
       })
+   })
 
-      //FORGET PASSWORD CHANGE PASSWORD
-   router.patch('/user/forget/:user_id', (req,res) => { 
-      const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
-      const data = req.body
-      data.password = bcrypt.hashSync(data.password, 8)
-      conn.query(sqlUpdate,data, (err, result) => {
-         if(err) return res.status(500).send(err)
-         res.status(200).send({
-            
-            message: 'Password has change'})
+})
+
+
+// FORGET PASSWORD CHANGE PASSWORD
+// router.patch('/user/forget/:token/:user_id', (req,res) => { 
+//    const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
+//    const data = req.body
+//    data.password = bcrypt.hashSync(data.password, 8)
+//    conn.query(sqlUpdate,data, (err, result) => {
+//       if(err) return res.status(500).send(err)
+//       res.status(200).send({
+         
+//          message: 'Password has change'})
+// })
+// })
+
+// GANTI PASSWORD DENGAN PASSWORD BARU
+router.patch('/user/forget/:token/:id', (req, res) => {
+   const sql = `SELECT * FROM table_tokens WHERE token = "${req.params.token}"`
+   //jangan lupa cek pass yang lama dan yang baru d frontend
+   // data.password = bcrypt.hashSync(data.password, 8)
+   // ambil data dulu baru d patch
+   
+   // id dari auth, auth dari frontend
+   conn.query(sql, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       const id = result[0].user_id
+       
+       const {password2} = req.body
+       // console.log(secondPass)
+       let password = bcrypt.hashSync(password2, 8)
+       // console.log(password, id)
+       const sqlUpdate = `UPDATE table_users SET password = '${password}' WHERE id = ${id}`
+       if(id == req.params.id) {
+           const sqlDelete = `DELETE from table_tokens WHERE user_id = ${id}`
+
+           return conn.query(sqlUpdate, (err, result) => {
+               if(err) return res.status(500).send(err)
+               
+               conn.query(sqlDelete, (err, res) => {
+                   if(err) return res.status(500).send(err)
+               })
+               res.status(200).send('Password berhasil diubah')
+           })   
+       }
+       res.status(200).send('Anda tidak memiliki akses untuk mengganti password pada account ini')
    })
 })
 
-      })
+// router.patch('/user/forget/:token/:user_id', (req,res) => { 
+//     const sqltoken = `SELECT * FROM table_tokens WHERE token = ${req.params.token}`
+//     conn.query(sqltoken,(err,res) => {
+//         if(res.length == 0 ) return res.status(501).send(err)
+//      const sqlUpdate = `UPDATE table_users SET ? WHERE id = ${req.params.user_id}`
+//      const data = req.body
+//      data.password = bcrypt.hashSync(data.password, 8)
+//      conn.query(sqlUpdate,data, (err, result) => {
+//         if(err) return res.status(500).send(err)
+//         res.status(200).send({
+           
+//            message: 'Password has change'})
+//              })
+//           })
+//      })
 
-   })
-
-   // DELETE TOKEN
+// DELETE TOKEN
 router.delete('/deletetoken/:user_id', (req,res) => {
    const sql = `DELETE FROM table_tokens WHERE user_id = ${req.params.user_id}`
    
@@ -331,9 +404,11 @@ router.delete('/deletetoken/:user_id', (req,res) => {
       })
     })
 })
-
-//CHANGE PASSWORD
-
+///////////////////////////////////////
+//CHANGE PASSWORD BUKAN LUPA PASSWORD//
+//CHANGE PASSWORD BUKAN LUPA PASSWORD//
+//CHANGE PASSWORD BUKAN LUPA PASSWORD//
+///////////////////////////////////////
 router.patch('/changepassword',auth, (req, res) => {
    
 
@@ -366,7 +441,153 @@ router.patch('/changepassword',auth, (req, res) => {
    })
 })
 
+// READ OWN transaction
+router.get('/historytransaction/me', auth, (req, res) => {
+   const sqlSelect = `
+   SELECT t.id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status
+   FROM table_transaction t
+   JOIN table_users u ON t.seller_id = u.id
+   WHERE user_id = ${req.user.id} AND status = 4 OR 2`
+
+// BECOME a SELLER
+router.get('/becomeseller', auth, (req, res) => {
+   const sqlSelect = `UPDATE table_users SET role_id = 3 WHERE id= ${req.user.id}`
+
+   conn.query(sqlSelect, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
    
+})
+
+router.get('/report/product',auth,(req,res) => {
+   const sql = `SELECT * FROM table_products WHERE user_id = ${req.user.id}`
+
+   conn.query(sql, (err,result) => {
+      if(err) return res.status(500).send(err)
+      res.status(200).send(result)
+   })
+})
+})
    
+const transferDirectory = path.join(__dirname, '../assets/transfer_sub')
+
+router.post('/transfer_photo', auth, upload.single('transfer_photo'), async (req,res) => {
+
+   try {
+       const sql = `INSERT INTO table_upgrade_users SET transfer_photo = ? , user_id = ? , status=0`
+       const fileName = `${shortid.generate()}.png`
+       const data = [fileName, req.user.id]
+       
+       await sharp(req.file.buffer).resize(500).png().toFile(`${transferDirectory}/${fileName}`)
+
+       conn.query(sql, data, (err, result) => {
+           if (err) return res.status(500).send(err)
+
+           res.status(200).send({message: "Kirim data berhasil"})
+
+       })
+   } catch (error) {
+       res.status(500).send(error.message)
+   }
+   
+}, (err, req, res, next) => { // it should declare 4 parameters, so express know this is function for handling any uncaught error
+   res.status(400).send(err.message)
+})
+
+router.post('/transfer_photo/again', auth, upload.single('transfer_photo'), async (req,res) => {
+
+   try {
+      const sql = `UPDATE table_upgrade_users SET transfer_photo = ? , status = 0 WHERE user_id= ?`
+      const fileName = `${shortid.generate()}.png`
+      const data = [fileName, req.user.id]
+      
+      await sharp(req.file.buffer).resize(500).png().toFile(`${transferDirectory}/${fileName}`)
+
+      conn.query(sql, data, (err, result) => {
+          if (err) return res.status(500).send(err)
+
+          res.status(200).send({message: "Kirim data berhasil"})
+
+      })
+   } catch (error) {
+         res.status(500).send(error.message)
+   }
+}, (err, req, res, next) => { // it should declare 4 parameters, so express know this is function for handling any uncaught error
+   res.status(400).send(err.message)
+})
+   
+
+// READ TRANSFER PHOTO UPGRADE
+router.get('/transferphoto/:fileName', (req, res) => {
+   var options = { 
+       root: transferDirectory // Direktori foto disimpan
+   };      
+   
+   var fileName = req.params.fileName;
+   
+   res.status(200).sendFile(fileName, options, function (err) {
+       if (err) {
+           return res.status(404).send({message: "Image not found"})
+       }        
+   });
+})
+
+router.get('/user/transfer/upgrade', auth, (req, res) => {
+   const sqlSelect = `SELECT * FROM table_upgrade_users WHERE user_id= ${req.user.id}`
+
+   conn.query(sqlSelect, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
+})
+
+///////// A D  M  I  N //////////////
+
+router.get('/admin/checkupgrade', auth, (req, res) => {
+   const sqlSelect = `SELECT * FROM table_upgrade_users WHERE status= 0`
+
+   conn.query(sqlSelect, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
+})
+
+// APPROVED UPGRADE BY ADMIN
+router.get('/approved/upgrade/:user_id', auth, (req, res) => {
+   const sqlSelect = `UPDATE table_users SET status_subscription=2 WHERE id= ${req.params.user_id}`
+
+   conn.query(sqlSelect, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
+})
+
+// REJECTED UPGRADE BY ADMIN
+router.get('/rejected/upgrade/:user_id', auth, (req, res) => {
+   const sqlSelect = `UPDATE table_upgrade_users SET status=2 WHERE user_id= ${req.params.user_id}`
+
+   conn.query(sqlSelect, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
+})
+
+// DELETE TABLE TRANSFER UPGRADE
+router.delete('/upgrade/:user_id', auth, (req, res) => {
+   const sql = `DELETE FROM table_upgrade_users WHERE user_id= ${req.params.user_id}`
+
+   conn.query(sql, (err, result) => {
+       if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
+})
+
      
 module.exports = router

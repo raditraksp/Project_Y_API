@@ -19,16 +19,16 @@ const productsDirectory = path.join(__dirname, '../assets/products')
 
 const product = multer({
    // storage: storage,
-    limits: {
-       fileSize: 100000000 // Byte , default 1MB
-    },
-    fileFilter(req, file, cb) {
-        if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){ // will be error if the extension name is not one of these
-            return cb(new Error('Please upload image file (jpg, jpeg, or png)')) 
-        }
+   limits: {
+       fileSize: 10000000 // Byte , default 1MB
+   },
+   fileFilter(req, file, cb) {
+       if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){ // will be error if the extension name is not one of these
+           return cb(new Error('Please upload image file (jpg, jpeg, or png)')) 
+       }
 
-    cb(undefined, true)
-    }
+       cb(undefined, true)
+   }
 })
 
 // POST PRODUCT
@@ -46,7 +46,7 @@ router.post('/products', auth, product.single("product_photo"),  (req, res) => {
             // Generate file name
             const fileName = `${shortid.generate()}.png`
             // Simpan gambar
-            await sharp(req.file.buffer).resize(500).png().toFile(`${productsDirectory}/${fileName}`)
+            await sharp(req.file.buffer).resize(800).png().toFile(`${productsDirectory}/${fileName}`)
             
             const sqlUpdate = `UPDATE table_products SET product_photo = ? WHERE id = ?`
             const dataUpdate = [fileName, result.insertId]
@@ -62,20 +62,6 @@ router.post('/products', auth, product.single("product_photo"),  (req, res) => {
     }
 })
 
-// ADD CATEGORY
-router.post('/products/addcategory', auth, (req, res) => {
-        // {name, description, stock, price} = req.body
-        // {picture} = req.file
-        const sqlInsert = `INSERT INTO table_categories SET ?`
-        const dataInsert = req.body
-
-        // insert semua data text
-        conn.query(sqlInsert, dataInsert, (err, result) => {
-            if (err) return res.status(500).send(err)
-            
-            res.status(200).send(result)
-        })
-})
 
 // UPDATE PRODUCT PHOTO
 router.post('/product/photo/:product_id', auth, product.single('product_photo'), async (req,res) => {
@@ -85,7 +71,7 @@ router.post('/product/photo/:product_id', auth, product.single('product_photo'),
         const fileName = `${shortid.generate()}.png`
         const data = [fileName, req.params.product_id]
         
-        await sharp(req.file.buffer).resize(200).png().toFile(`${productsDirectory}/${fileName}`)
+        await sharp(req.file.buffer).resize(1000).png().toFile(`${productsDirectory}/${fileName}`)
  
         conn.query(sql, data, (err, result) => {
             if (err) return res.status(500).send(err)
@@ -96,7 +82,6 @@ router.post('/product/photo/:product_id', auth, product.single('product_photo'),
     } catch (error) {
         res.status(500).send(error.message)
     }
-    
  }, (err, req, res, next) => { // it should declare 4 parameters, so express know this is function for handling any uncaught error
     res.status(400).send(err.message)
  })
@@ -113,11 +98,72 @@ router.patch('/product/:product_id', auth, (req, res) => {
             })    
 })
 
+//////////////////////
+///// R E A D ////////
+/////////////////////
+
 // READ ALL PRODUCTS
 router.get('/products', (req, res) => {
     const sqlSelect = `
-    SELECT p.id, p.product, p.user_id, p.rating_id, p.price_basic, p.product_photo, p.status, u.username 
-    FROM table_products p JOIN table_users u ON p.user_id=u.id WHERE p.status = 1`
+    SELECT p.id, p.product, p.user_id, p.rating_id, COUNT(r.product_id) as 'product_total', FORMAT(AVG(r.rating),1) as 'rating_avg', p.price_basic, p.product_photo, p.status, u.username, u.status_subscription 
+    FROM table_products p LEFT JOIN table_users u ON p.user_id=u.id LEFT JOIN table_ratings r ON p.id=r.product_id 
+    WHERE p.status = 1 GROUP BY p.id ORDER BY RAND()`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// READ ALL PRODUCTS BY PREMIUM SELLER PAGE
+router.get('/products/premiumseller', (req, res) => {
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.rating_id, COUNT(r.product_id) as 'product_total', FORMAT(AVG(r.rating),1) as 'rating_avg', p.price_basic, p.product_photo, p.status, u.username, u.status_subscription 
+    FROM table_products p LEFT JOIN table_users u ON p.user_id=u.id LEFT JOIN table_ratings r ON p.id=r.product_id 
+    WHERE (u.status_subscription = 2 AND p.status=1) GROUP BY p.id ORDER BY RAND()`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// READ PRODUCTS BY PREMIUM SELLER LIMIT 5 HOME
+router.get('/products/premiumseller/home', (req, res) => {
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.rating_id, COUNT(r.product_id) as 'product_total', FORMAT(AVG(r.rating),1) as 'rating_avg', p.price_basic, p.product_photo, p.status, u.username, u.status_subscription 
+    FROM table_products p LEFT JOIN table_users u ON p.user_id=u.id LEFT JOIN table_ratings r ON p.id=r.product_id 
+    WHERE (u.status_subscription = 2 AND p.status=1) GROUP BY p.id ORDER BY RAND() LIMIT 5`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// READ PRODUCTS BY BEST RATING
+router.get('/products/bestrating/home', (req, res) => {
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.rating_id, COUNT(r.product_id) as 'product_total', FORMAT(AVG(r.rating),1) as 'rating_avg', p.price_basic, p.product_photo, p.status, u.username, u.status_subscription 
+    FROM table_products p LEFT JOIN table_users u ON p.user_id=u.id LEFT JOIN table_ratings r ON p.id=r.product_id 
+    WHERE p.status = 1 GROUP BY p.id ORDER BY rating_avg DESC LIMIT 5`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// READ PRODUCTS BY BEST RATING
+router.get('/products/bestrating', (req, res) => {
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.rating_id, COUNT(r.product_id) as 'product_total', FORMAT(AVG(r.rating),1) as 'rating_avg', p.price_basic, p.product_photo, p.status, u.username, u.status_subscription 
+    FROM table_products p LEFT JOIN table_users u ON p.user_id=u.id LEFT JOIN table_ratings r ON p.id=r.product_id 
+    WHERE p.status = 1 GROUP BY p.id ORDER BY rating_avg DESC`
 
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
@@ -159,14 +205,30 @@ router.get('/product/picture/:fileName', (req, res) => {
 })
 
 // READ DETAIL PRODUCT
-router.get('/product/:id', (req, res) => {
-    const sqlSelect = `SELECT * FROM table_products WHERE id = ${req.params.id}`
+router.get('/product/:product_id', (req, res) => {
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.rating_id, p.price_basic, p.detail_product, p.price_premium, p.detail_basic, p.detail_premium, p.product_photo, p.status, u.username, u.email, p.created_at, p.updated_at
+    FROM table_products p JOIN table_users u ON p.user_id=u.id WHERE p.id = ${req.params.product_id}`
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
         
         res.status(200).send(result[0])
     })
 })
+
+// READ DETAIL PRODUCT
+router.get('/product/search/category', (req, res) => {
+    const sqlSelect = `
+    select pc.id, pc.product_id, pc.category_id, category, product, p.user_id, detail_basic, detail_product, detail_premium, price_basic, price_premium, product_photo, status
+    from table_product_categories pc join table_categories c on pc.category_id = c.id join table_products p on pc.product_id = p.id where status=1`
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+
 
 // DELETE PRODUCT
 router.delete('/product/:product_id', auth, (req, res) => {
@@ -224,6 +286,49 @@ router.delete('/cart/:cart_id', auth, (req, res) => {
     })
 })
 
+/////////////////////////
+//// C A T E G O R Y ////
+/////////////////////////
+
+// ADD CATEGORY
+router.post('/products/addcategory', auth, (req, res) => {
+    // {name, description, stock, price} = req.body
+    // {picture} = req.file
+    const sqlInsert = `INSERT INTO table_product_categories SET ?`
+    const dataInsert = req.body
+
+    // insert semua data text
+    conn.query(sqlInsert, dataInsert, (err, result) => {
+        if (err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// READ CATEGORY
+router.get('/product/category/:product_id', (req, res) => {
+
+const sqlInsert = `
+SELECT pc.id, pc.product_id, c.category FROM table_product_categories pc join 
+table_categories c ON pc.category_id=c.id WHERE pc.product_id = ${req.params.product_id}`
+
+// insert semua data text
+conn.query(sqlInsert, (err, result) => {
+    if (err) return res.status(500).send(err)
+    
+    res.status(200).send(result)
+})
+})
+
+// DELETE CATEGORY
+router.delete('/product/category/:product_category_id', auth, (req, res) => {
+const sql = `DELETE FROM table_product_categories WHERE id = ${req.params.product_category_id}`
+conn.query(sql, (err, result) => {
+    if(err) return res.status(500).send(err)
+    
+    res.status(200).send({message:"Delete Success"})
+})
+})
 
 ///////////////////////////////
 ///////// A D M I N  //////////
@@ -278,6 +383,17 @@ router.get('/orders/admin', auth, (req, res) => {
     })
 })
 
+router.get('/product/search/category', (req, res) => {
+    const sqlSelect = `
+    select pc.id, pc.product_id, u.username, pc.category_id, category, product, p.user_id, detail_basic, detail_product, detail_premium, price_basic, price_premium, product_photo, status
+    from table_product_categories pc join table_categories c on pc.category_id = c.id join table_products p on pc.product_id = p.id join table_users u on p.user_id=u.id where status=1`
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
 const ordersDirectory = path.join(__dirname, '../assets/payment_photos')
 
 // READ PAYMENT PHOTO ORDERS
@@ -303,6 +419,15 @@ router.get('/orders/:orders_id/approved/admin', auth, (req, res) => {
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
         
+        res.status(200).send(result)
+    })
+})
+
+router.get('/chart/products',auth,(req,res) => {
+    const sqlSelect = `
+    select * from table_transaction where seller_id = ${req.user.id}`
+    conn.query(sqlSelect,(err,result) => {
+        if(err) return res.status(500).send(err)
         res.status(200).send(result)
     })
 })
@@ -368,6 +493,16 @@ router.get('/orders', auth, (req, res) => {
     })
 })
 
+router.get('/report/count', auth,(req,res) => {
+    const sqlSelect = `SELECT  date(order_time) as time , seller_id, product_name, COUNT(*) as 'total_jual'
+    from table_transaction 
+    where seller_id = ${req.user.id}
+    GROUP BY product_name`
+    conn.query(sqlSelect,(err,result) => {
+        if(err) return res.status(500).send(err)
+        res.status(200).send(result)
+    })
+})
 // DELETE ORDER BY USER
 router.post('/orders/:orders_id', auth, (req, res) => {
     const sqlUpdate = `UPDATE table_orders SET status=2 WHERE id = ${req.params.orders_id}`
@@ -401,6 +536,18 @@ router.get('/accepted/orders/:orders_id', auth, (req, res) => {
     conn.query(sqlUpdate, (err, result) => {
         if(err) return res.status(500).send(err)
         
+        res.status(200).send(result)
+    })
+})
+
+router.get('/report/line',auth,(req,res) => {
+    const sqlSelect = `SELECT  date(order_time) as time , seller_id, product_name, COUNT(product_name) as 'total_jual'
+    from table_transaction 
+    where seller_id = ${req.user.id}
+    GROUP BY time, product_name 
+    ORDER BY 1;`
+    conn.query(sqlSelect,(err,result) => {
+        if(err) return res.status(500).send(err)
         res.status(200).send(result)
     })
 })
