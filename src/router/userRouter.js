@@ -441,13 +441,36 @@ router.patch('/changepassword',auth, (req, res) => {
    })
 })
 
-// READ OWN transaction
+// READ OWN transaction USER
 router.get('/historytransaction/me', auth, (req, res) => {
-   const sqlSelect = `
-   SELECT t.id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status
+   const sql = `
+   SELECT t.id, t.user_id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status
    FROM table_transaction t
    JOIN table_users u ON t.seller_id = u.id
-   WHERE user_id = ${req.user.id} AND status = 4 OR 2`
+   WHERE t.user_id = ${req.user.id} AND (status = 6 OR 2)`
+
+   conn.query(sql, (err,result) => {
+      if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
+})
+
+// READ OWN transaction SELLER
+router.get('/historytransaction/seller', auth, (req, res) => {
+   const sql = `
+   SELECT t.id, t.seller_id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status
+   FROM table_transaction t
+   JOIN table_users u ON t.user_id = u.id
+   WHERE t.seller_id = ${req.user.id} AND (status = 6 OR 2)`
+
+   conn.query(sql, (err,result) => {
+      if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
+})
+
 
 // BECOME a SELLER
 router.get('/becomeseller', auth, (req, res) => {
@@ -469,14 +492,16 @@ router.get('/report/product',auth,(req,res) => {
       res.status(200).send(result)
    })
 })
-})
-   
+
+//////////////////////////////////
+/////// SEND BUKTI TRANSFER//////
+/////////////////////////////////
 const transferDirectory = path.join(__dirname, '../assets/transfer_sub')
 
 router.post('/transfer_photo', auth, upload.single('transfer_photo'), async (req,res) => {
 
    try {
-       const sql = `INSERT INTO table_upgrade_users SET transfer_photo = ? , user_id = ? , status=0`
+       const sql = `INSERT INTO table_upgrade_users SET transfer_photo = ? , user_id = ? , status = 0`
        const fileName = `${shortid.generate()}.png`
        const data = [fileName, req.user.id]
        
@@ -496,6 +521,7 @@ router.post('/transfer_photo', auth, upload.single('transfer_photo'), async (req
    res.status(400).send(err.message)
 })
 
+// UPDATE TRANSFER UPGRADE PHOTO
 router.post('/transfer_photo/again', auth, upload.single('transfer_photo'), async (req,res) => {
 
    try {
