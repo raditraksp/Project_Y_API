@@ -20,7 +20,7 @@ const productsDirectory = path.join(__dirname, '../assets/products')
 const product = multer({
    // storage: storage,
    limits: {
-       fileSize: 100000000 // Byte , default 1MB
+       fileSize: 10000000 // Byte , default 1MB
    },
    fileFilter(req, file, cb) {
        if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){ // will be error if the extension name is not one of these
@@ -46,7 +46,7 @@ router.post('/products', auth, product.single("product_photo"),  (req, res) => {
             // Generate file name
             const fileName = `${shortid.generate()}.png`
             // Simpan gambar
-            await sharp(req.file.buffer).resize(1000).png().toFile(`${productsDirectory}/${fileName}`)
+            await sharp(req.file.buffer).resize(800).png().toFile(`${productsDirectory}/${fileName}`)
             
             const sqlUpdate = `UPDATE table_products SET product_photo = ? WHERE id = ?`
             const dataUpdate = [fileName, result.insertId]
@@ -108,8 +108,65 @@ router.patch('/product/:product_id', auth, (req, res) => {
 // READ ALL PRODUCTS
 router.get('/products', (req, res) => {
     const sqlSelect = `
-    SELECT p.id, p.product, p.user_id, p.rating_id, p.price_basic, p.product_photo, p.status, u.username 
-    FROM table_products p JOIN table_users u ON p.user_id=u.id WHERE p.status = 1`
+    SELECT p.id, p.product, p.user_id, p.rating_id, COUNT(r.product_id) as 'product_total', FORMAT(AVG(r.rating),1) as 'rating_avg', p.price_basic, p.product_photo, p.status, u.username, u.status_subscription 
+    FROM table_products p LEFT JOIN table_users u ON p.user_id=u.id LEFT JOIN table_ratings r ON p.id=r.product_id 
+    WHERE p.status = 1 GROUP BY p.id ORDER BY RAND()`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// READ ALL PRODUCTS BY PREMIUM SELLER PAGE
+router.get('/products/premiumseller', (req, res) => {
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.rating_id, COUNT(r.product_id) as 'product_total', FORMAT(AVG(r.rating),1) as 'rating_avg', p.price_basic, p.product_photo, p.status, u.username, u.status_subscription 
+    FROM table_products p LEFT JOIN table_users u ON p.user_id=u.id LEFT JOIN table_ratings r ON p.id=r.product_id 
+    WHERE (u.status_subscription = 2 AND p.status=1) GROUP BY p.id ORDER BY RAND()`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// READ PRODUCTS BY PREMIUM SELLER LIMIT 5 HOME
+router.get('/products/premiumseller/home', (req, res) => {
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.rating_id, COUNT(r.product_id) as 'product_total', FORMAT(AVG(r.rating),1) as 'rating_avg', p.price_basic, p.product_photo, p.status, u.username, u.status_subscription 
+    FROM table_products p LEFT JOIN table_users u ON p.user_id=u.id LEFT JOIN table_ratings r ON p.id=r.product_id 
+    WHERE (u.status_subscription = 2 AND p.status=1) GROUP BY p.id ORDER BY RAND() LIMIT 5`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// READ PRODUCTS BY BEST RATING
+router.get('/products/bestrating/home', (req, res) => {
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.rating_id, COUNT(r.product_id) as 'product_total', FORMAT(AVG(r.rating),1) as 'rating_avg', p.price_basic, p.product_photo, p.status, u.username, u.status_subscription 
+    FROM table_products p LEFT JOIN table_users u ON p.user_id=u.id LEFT JOIN table_ratings r ON p.id=r.product_id 
+    WHERE p.status = 1 GROUP BY p.id ORDER BY rating_avg DESC LIMIT 5`
+
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
+    })
+})
+
+// READ PRODUCTS BY BEST RATING
+router.get('/products/bestrating', (req, res) => {
+    const sqlSelect = `
+    SELECT p.id, p.product, p.user_id, p.rating_id, COUNT(r.product_id) as 'product_total', FORMAT(AVG(r.rating),1) as 'rating_avg', p.price_basic, p.product_photo, p.status, u.username, u.status_subscription 
+    FROM table_products p LEFT JOIN table_users u ON p.user_id=u.id LEFT JOIN table_ratings r ON p.id=r.product_id 
+    WHERE p.status = 1 GROUP BY p.id ORDER BY rating_avg DESC`
 
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
@@ -153,12 +210,24 @@ router.get('/product/picture/:fileName', (req, res) => {
 // READ DETAIL PRODUCT
 router.get('/product/:product_id', (req, res) => {
     const sqlSelect = `
-    SELECT p.id, p.product, p.user_id, p.rating_id, p.price_basic,p.detail_product,p.price_premium,p.detail_basic,p.detail_premium, p.product_photo, p.status, u.username, u.email, p.created_at, p.updated_at
+    SELECT p.id, p.product, p.user_id, p.rating_id, p.price_basic, p.detail_product, p.price_premium, p.detail_basic, p.detail_premium, p.product_photo, p.status, u.username, u.email, p.created_at, p.updated_at
     FROM table_products p JOIN table_users u ON p.user_id=u.id WHERE p.id = ${req.params.product_id}`
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
         
         res.status(200).send(result[0])
+    })
+})
+
+// READ DETAIL PRODUCT
+router.get('/product/search/category', (req, res) => {
+    const sqlSelect = `
+    select pc.id, pc.product_id, pc.category_id, category, product, p.user_id, detail_basic, detail_product, detail_premium, price_basic, price_premium, product_photo, status
+    from table_product_categories pc join table_categories c on pc.category_id = c.id join table_products p on pc.product_id = p.id where status=1`
+    conn.query(sqlSelect, (err, result) => {
+        if(err) return res.status(500).send(err)
+        
+        res.status(200).send(result)
     })
 })
 
