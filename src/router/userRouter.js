@@ -175,18 +175,18 @@ router.patch('/user/profile', auth, (req, res) => {
    try {
        // {name, description, stock, price} = req.body
        // {picture} = req.file
-       const sqlUpdate = `UPDATE table_detail_users SET ? WHERE id = ? `
-       const dataUpdate = [req.body , req.user.id]
-       
-       // insert semua data text
-       conn.query(sqlUpdate, dataUpdate, (err, result) => {
-           if (err) return res.status(500).send(err)
+      const sqlUpdate = `UPDATE table_detail_users SET ? WHERE id = ? `
+      const dataUpdate = [req.body , req.user.id]
+
+      // insert semua data text
+      conn.query(sqlUpdate, dataUpdate, (err, result) => {
+         if (err) return res.status(500).send(err)
                res.status(200).send({message: "Update data berhasil"})
-           })
-                } catch (err) {
-                res.status(500).send(err)
-               }
-            })
+      })
+   } catch (err) {
+               res.status(500).send(err)
+   }
+})
 
 // LOGOUT
 router.delete('/logout', auth, (req,res) => {

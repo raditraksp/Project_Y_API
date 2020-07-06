@@ -308,13 +308,19 @@ router.get('/orders/:orders_id/approved/admin', auth, (req, res) => {
 })
 
 // REJECTED PAYMENT BY ADMIN
-router.get('/orders/:orders_id/rejected/admin', auth, (req, res) => {
-    const sqlSelect = `UPDATE table_orders SET status=4 WHERE id= ${req.params.orders_id}`
+router.post('/orders/:orders_id/rejected/admin', auth, (req, res) => {
+    
+    const sqlInsert = `
+    UPDATE table_orders 
+    SET message_admin = ? , status=4 , payment_photo = null 
+    WHERE id = ${req.params.orders_id}
+    `
+    const msgInsert = req.body.message
 
-    conn.query(sqlSelect, (err, result) => {
-        if(err) return res.status(500).send(err)
-        
-        res.status(200).send(result)
+    conn.query(sqlInsert, msgInsert, (err, result) => {
+        if (err) return res.status(500).send(err)
+
+        res.status(200).send({message: "Pembayaran berhasil ditolak!"})
     })
 })
 
@@ -352,7 +358,7 @@ router.get('/orders', auth, (req, res) => {
     // Mengambil data dari table_order yang dijoin dengan table_users
     const sqlUser = `
     SELECT o.id, o.user_id, o.seller_id, o.product_id, o.product_name, o.total_amount, 
-    o.detail_order, o.payment_photo, o.status, o.payment_photo, u.username FROM table_orders o 
+    o.detail_order, o.payment_photo, o.order_time, o.status, o.message_admin, u.username FROM table_orders o 
     JOIN table_users u ON o.seller_id = u.id OR o.user_id = u.id
     `
     conn.query(sqlUser, (err, result) => {
@@ -363,19 +369,28 @@ router.get('/orders', auth, (req, res) => {
 })
 
 // DELETE ORDER BY USER
-router.delete('/orders/:orders_id', auth, (req, res) => {
-    // Mengupdate status = 2
+router.post('/orders/:orders_id', auth, (req, res) => {
     const sqlUpdate = `UPDATE table_orders SET status=2 WHERE id = ${req.params.orders_id}`
+
     conn.query(sqlUpdate, (err, result) => {
-        if(err) return res.status(500).send(err)
-        
-        // Menghapus data Order
-        const sqlDelete = `DELETE FROM table_orders WHERE id = ${req.params.orders_id}`
-        conn.query(sqlDelete, (err, result) => {
-            if(err) return res.status(500).send(err)
-            
-            res.status(200).send({message:"Delete Success"})
-        })  
+        if (err) return res.status(500).send(err)
+
+        const sqlInsertTrx = `
+            INSERT INTO table_transaction(order_id, user_id, seller_id, product_id, product_name, total_amount, detail_order, order_time, status)
+            SELECT id, user_id, seller_id, product_id, product_name, total_amount, detail_order, order_time, status FROM table_orders
+            WHERE id = ${req.params.orders_id}
+        `
+        conn.query(sqlInsertTrx, (err, result) => {
+            if (err) return res.status(500).send(err)
+
+            // Menghapus data Order
+            const sqlDelete = `DELETE FROM table_orders WHERE id = ${req.params.orders_id}`
+            conn.query(sqlDelete, (err, result) => {
+                if(err) return res.status(500).send(err)
+                
+                res.status(200).send({message:"Delete Success"})
+            })  
+        })
     })
 })
 
@@ -437,6 +452,28 @@ router.post('/orders/:orders_id/payment_photo', auth, upload.single('payment_pho
     res.send(err)
 })
 
+// UPLOAD ULANG BUKTI
+router.post('/orders/repeat/:orders_id/payment_photo', auth, upload.single('payment_photo'), async (req, res) => {
+
+    try {
+        const fileName = `${req.params.orders_id}-payment.png`
+        const sqlUpdate = `UPDATE table_orders SET payment_photo = ? , status=1 WHERE id = ${req.params.orders_id}`
+        const data = [fileName, req.params.orders_id]
+
+        await sharp(req.file.buffer).resize(300).png().toFile(`${buktiTrxDirectory}/${fileName}`)
+
+        conn.query(sqlUpdate, data, (err, result) =>{
+            if(err) return res.status(500).send(err)
+
+            res.status(201).send({message: 'Bukti transfer berhasil di upload'})
+        })
+    } catch (err) {
+        res.status(500).send(err.message)
+    }
+}, (err, req, res, next) => {
+    res.send(err)
+})
+
 // UPDATE STATUS ORDER (FINISH BY SELLER)
 router.get('/seller_finish/orders/:orders_id', auth, (req, res) => {
     const sqlUpdate = `UPDATE table_orders SET status=5 WHERE id = ${req.params.orders_id}`
@@ -460,12 +497,28 @@ router.get('/user_finish/orders/:orders_id', auth, (req, res) => {
                 SELECT id, user_id, seller_id, product_id, product_name, total_amount, detail_order, order_time, status FROM table_orders
                 WHERE id = ${req.params.orders_id}
             `
-            // const dataInsertTrx = [order.id, order.user_id, order.seller_id, order.product_id, order.product_name, order.total_amount, order.detail_order, order.order_time, order.status]
             conn.query(sqlInsertTrx, (err, result) => {
                 if(err) return res.status(500).send(err)
     
                 res.status(200).send({message: 'Transaksi selesai!'})
             })
+    })
+})
+
+///////////////////////////////
+///////// I N V O I C E  //////
+//////////////////////////////
+
+// READ INVOICE USER
+router.get('/invoice/:user_id/:order_id', auth, (req, res) => {
+    // Mengambil data dari table_order yang dijoin dengan table_users
+    const sqlUser = `
+    SELECT * FROM table_transaction WHERE order_id = ${req.params.order_id}
+    `
+    conn.query(sqlUser, (err, result) => {
+        if(err) return res.status(500).send(err)
+    
+        res.status(200).send(result)
     })
 })
 
