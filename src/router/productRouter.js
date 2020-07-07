@@ -357,92 +357,13 @@ conn.query(sql, (err, result) => {
 })
 })
 
-///////////////////////////////
-///////// A D M I N  //////////
-//////////////////////////////
 
-// READ ALL PRODUCTS ADMIN
-router.get('/products/admin', auth, (req, res) => {
-    const sqlSelect = `SELECT  p.id, p.product, u.username, p.product_photo, 
-    p.status, u.role_id, p.detail_basic, p.detail_premium, p.price_basic, p.price_premium 
-    FROM table_products p JOIN table_users u ON p.user_id = u.id
-    WHERE status = 0`
 
-    conn.query(sqlSelect, (err, result) => {
-        if(err) return res.status(500).send(err)
-        
-        res.status(200).send(result)
-    })
-})
-
-// APPROVED PRODUCTS BY ADMIN
-router.get('/approved/admin/:product_id', auth, (req, res) => {
-    const sqlSelect = `UPDATE table_products SET status=1 WHERE id= ${req.params.product_id}`
-
-    conn.query(sqlSelect, (err, result) => {
-        if(err) return res.status(500).send(err)
-        
-        res.status(200).send(result)
-    })
-})
-
-// REJECTED PRODUCTS BY ADMIN
-router.get('/rejected/admin/:product_id', auth, (req, res) => {
-    const sqlSelect = `UPDATE table_products SET status=2 WHERE id= ${req.params.product_id}`
-
-    conn.query(sqlSelect, (err, result) => {
-        if(err) return res.status(500).send(err)
-        
-        res.status(200).send(result)
-    })
-})
-
-// READ ALL ORDERS ADMIN
-router.get('/orders/admin', auth, (req, res) => {
-    const sqlSelect = `SELECT id, payment_photo, status 
-    FROM table_orders
-    WHERE status = 1`
-
-    conn.query(sqlSelect, (err, result) => {
-        if(err) return res.status(500).send(err)
-        
-        res.status(200).send(result)
-    })
-})
 
 router.get('/product/search/category', (req, res) => {
     const sqlSelect = `
     select pc.id, pc.product_id, u.username, pc.category_id, category, product, p.user_id, detail_basic, detail_product, detail_premium, price_basic, price_premium, product_photo, status
     from table_product_categories pc join table_categories c on pc.category_id = c.id join table_products p on pc.product_id = p.id join table_users u on p.user_id=u.id where status=1`
-    conn.query(sqlSelect, (err, result) => {
-        if(err) return res.status(500).send(err)
-        
-        res.status(200).send(result)
-    })
-})
-
-const ordersDirectory = path.join(__dirname, '../assets/payment_photos')
-
-// READ PAYMENT PHOTO ORDERS
-router.get('/orders/:orders_id/payment/:fileName', (req, res) => {
-    var options = { 
-        root: ordersDirectory // Direktori foto disimpan
-    };      
-    
-    var fileName = req.params.fileName;
-    
-    res.status(200).sendFile(fileName, options, function (err) {
-        if (err) {
-            return res.status(404).send({message: "Image not found"})
-        } 
-        console.log('Sent:', fileName);
-    });
-})
-
-// APPROVED PAYMENT BY ADMIN
-router.get('/orders/:orders_id/approved/admin', auth, (req, res) => {
-    const sqlSelect = `UPDATE table_orders SET status=3 WHERE id= ${req.params.orders_id}`
-
     conn.query(sqlSelect, (err, result) => {
         if(err) return res.status(500).send(err)
         
@@ -459,23 +380,33 @@ router.get('/chart/products',auth,(req,res) => {
     })
 })
 
-// REJECTED PAYMENT BY ADMIN
-router.post('/orders/:orders_id/rejected/admin', auth, (req, res) => {
+// GET RATING USER
+router.get('/product/ratings/:product_id/:order_id', auth, (req, res) => {
     
     const sqlInsert = `
-    UPDATE table_orders 
-    SET message_admin = ? , status=4 , payment_photo = null 
-    WHERE id = ${req.params.orders_id}
+    SELECT * FROM table_ratings WHERE user_id = ${req.user.id} AND product_id = ${req.params.product_id} AND order_id = ${req.params.order_id}
     `
-    const msgInsert = req.body.message
+    conn.query(sqlInsert, (err, result) => {
+        if (err) return res.status(500).send(err)
 
-    conn.query(sqlInsert, msgInsert, (err, result) => {
+        res.status(200).send({result})
+    })
+})  
+
+// ADD RATING USER
+router.post('/product/addrating/:product_id/:order_id', auth, (req, res) => {
+    
+    const sqlInsert = `
+    INSERT INTO table_ratings 
+    SET feedback = ? , rating = ?, order_id=${req.params.order_id}, user_id = ${req.user.id}, product_id = ${req.params.product_id}
+    `
+    const data = [req.body.message, req.body.rating]
+
+    conn.query(sqlInsert, data, (err, result) => {
         if (err) return res.status(500).send(err)
 
         res.status(200).send({message: "Pembayaran berhasil ditolak!"})
     })
 })
-
-
 
 module.exports = router

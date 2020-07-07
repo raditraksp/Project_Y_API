@@ -444,10 +444,10 @@ router.patch('/changepassword',auth, (req, res) => {
 // READ OWN transaction USER
 router.get('/historytransaction/me', auth, (req, res) => {
    const sql = `
-   SELECT t.id, t.user_id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status
+   SELECT t.id, t.user_id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status, t.order_id
    FROM table_transaction t
    JOIN table_users u ON t.seller_id = u.id
-   WHERE t.user_id = ${req.user.id} AND (status = 6 OR 2)`
+   WHERE t.user_id = ${req.user.id} AND (t.status = 6 OR t.status=2)`
 
    conn.query(sql, (err,result) => {
       if(err) return res.status(500).send(err)
@@ -462,7 +462,7 @@ router.get('/historytransaction/seller', auth, (req, res) => {
    SELECT t.id, t.seller_id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status
    FROM table_transaction t
    JOIN table_users u ON t.user_id = u.id
-   WHERE t.seller_id = ${req.user.id} AND (status = 6 OR 2)`
+   WHERE t.seller_id = ${req.user.id} AND (t.status = 6 OR t.status=2)`
 
    conn.query(sql, (err,result) => {
       if(err) return res.status(500).send(err)
@@ -570,50 +570,6 @@ router.get('/user/transfer/upgrade', auth, (req, res) => {
    })
 })
 
-///////// A D  M  I  N //////////////
-
-router.get('/admin/checkupgrade', auth, (req, res) => {
-   const sqlSelect = `SELECT * FROM table_upgrade_users WHERE status= 0`
-
-   conn.query(sqlSelect, (err, result) => {
-       if(err) return res.status(500).send(err)
-       
-       res.status(200).send(result)
-   })
-})
-
-// APPROVED UPGRADE BY ADMIN
-router.get('/approved/upgrade/:user_id', auth, (req, res) => {
-   const sqlSelect = `UPDATE table_users SET status_subscription=2 WHERE id= ${req.params.user_id}`
-
-   conn.query(sqlSelect, (err, result) => {
-       if(err) return res.status(500).send(err)
-       
-       res.status(200).send(result)
-   })
-})
-
-// REJECTED UPGRADE BY ADMIN
-router.get('/rejected/upgrade/:user_id', auth, (req, res) => {
-   const sqlSelect = `UPDATE table_upgrade_users SET status=2 WHERE user_id= ${req.params.user_id}`
-
-   conn.query(sqlSelect, (err, result) => {
-       if(err) return res.status(500).send(err)
-       
-       res.status(200).send(result)
-   })
-})
-
-// DELETE TABLE TRANSFER UPGRADE
-router.delete('/upgrade/:user_id', auth, (req, res) => {
-   const sql = `DELETE FROM table_upgrade_users WHERE user_id= ${req.params.user_id}`
-
-   conn.query(sql, (err, result) => {
-       if(err) return res.status(500).send(err)
-       
-       res.status(200).send(result)
-   })
-})
 
      
 module.exports = router
