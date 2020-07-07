@@ -541,7 +541,7 @@ router.get('/accepted/orders/:orders_id', auth, (req, res) => {
 })
 
 router.get('/report/line',auth,(req,res) => {
-    const sqlSelect = `SELECT  date(order_time) as time , seller_id, product_name, COUNT(product_name) as 'total_jual'
+    const sqlSelect = `SELECT date(finish_time) as time , seller_id, product_name, COUNT(product_name) as 'total_jual'
     from table_transaction 
     where seller_id = ${req.user.id}
     GROUP BY time, product_name 
