@@ -299,14 +299,32 @@ router.get('/historytransaction/me', auth, (req, res) => {
    SELECT t.id, t.user_id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status
    FROM table_transaction t
    JOIN table_users u ON t.seller_id = u.id
-   WHERE user_id = ${req.user.id} AND (t.status = 6 OR  t.status = 2)`
+   WHERE t.user_id = ${req.user.id} AND (status = 6 OR 2)`
 
-   conn.query(sqlSelect, (err,result) => {
+   conn.query(sql, (err,result) => {
       if(err) return res.status(500).send(err)
-      res.status(200).send(result)
+       
+       res.status(200).send(result)
    })
-
 })
+
+
+// READ OWN transaction SELLER
+router.get('/historytransaction/seller', auth, (req, res) => {
+   const sql = `
+   SELECT t.id, t.seller_id, t.product_id, u.username, t.product_name, t.total_amount, t.detail_order, t.order_time, t.finish_time, t.status
+   FROM table_transaction t
+   JOIN table_users u ON t.user_id = u.id
+   WHERE t.seller_id = ${req.user.id} AND (status = 6 OR 2)`
+
+   conn.query(sql, (err,result) => {
+      if(err) return res.status(500).send(err)
+       
+       res.status(200).send(result)
+   })
+})
+
+
 /////////////////////
 // BECOME a SELLER//
 ///////////////////

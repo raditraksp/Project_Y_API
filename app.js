@@ -6,6 +6,8 @@ const port = 2022
 const userRouter = require('./src/router/userRouter')
 const productRouter = require('./src/router/productRouter')
 const authRouter = require('./src/router/authRouter')
+const adminRouter = require('./src/router/adminRouter')
+const transactionRouter = require('./src/router/transactionRouter')
 
 app.use(cors())
 app.use(express.json())
@@ -13,6 +15,8 @@ app.use(express.json())
 app.use(userRouter)
 app.use(productRouter)
 app.use(authRouter)
+app.use(adminRouter)
+app.use(transactionRouter)
 
 
 app.get('/', (req, res) => {
